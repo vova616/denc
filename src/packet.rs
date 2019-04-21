@@ -18,7 +18,8 @@ pub struct Rora {
 #[derive(MapperDec, MapperEnc)]
 pub struct Header {
     pub size: u16,
-    pub encryption: u16
+    pub encryption: u16,
+    pub id: u32
 }
 
 pub mod Send {
@@ -27,8 +28,7 @@ pub mod Send {
 
     #[derive(MapperEnc)]
     pub struct Hello {
-        pub header: u32,
-        pub encryption: u16
+        pub payload: u32
     }
 }
 

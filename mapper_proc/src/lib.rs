@@ -44,17 +44,17 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                        #name = std::mem::uninitialized();
                    }
                    for item in &mut #name {
-                       let _s_size = <#ty>::size(&_s_buffer);
-                       let #name = <#ty>::decode(&_s_buffer[.._s_size]);
                        _s_buffer = &_s_buffer[_s_size..];
+                       _s_size = <#ty>::size(&_s_buffer);
+                       let #name = <#ty>::decode(&_s_buffer[.._s_size]);
                    }
                 }
             }
             _ => {
                 quote! {
-                   let _s_size = <#ty>::size(&_s_buffer);
-                   let #name = <#ty>::decode(&_s_buffer[.._s_size]);
                    _s_buffer = &_s_buffer[_s_size..];
+                   _s_size = <#ty>::size(&_s_buffer);
+                   let #name = <#ty>::decode(&_s_buffer[.._s_size]);
                 }
             }
         }
@@ -63,7 +63,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = &f.ident;
         quote! {
-           #name: #name
+           #name
         }
     });
     let name = &input.ident;
@@ -75,7 +75,9 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         impl<'a> Decoder<'a> for #name #ty_generics #where_clause {
             type Output = Self;
 
+            #[inline]
             fn decode(mut _s_buffer: &'a [u8]) -> Self {
+                let mut _s_size = 0;
                 #(
                    #decoder_decode_impl
                 )*
@@ -86,6 +88,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 }
             }
 
+            #[inline]
             fn size(buffer: &'a [u8]) -> usize {
                 let mut index = 0;
                 #(
@@ -149,12 +152,15 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         impl #impl_generics Encoder for #name #ty_generics #where_clause {
+
+            #[inline]
              fn encode_into<T : std::io::prelude::Write>(&self, buff: &mut T) {
                 #(
                    #decoder_decode_impl
                 )*
             }
 
+            #[inline]
             fn size_enc(&self) -> usize {
                 let mut size = 0;
                 #(

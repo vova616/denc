@@ -306,7 +306,7 @@ mod tests {
             }
             let mut pong = TestStructSmall::decode(&bytes);
             b.iter(||  {
-               pong.encode();
+                pong.encode();
             });
         });
     }
@@ -400,8 +400,7 @@ mod tests {
             }
             let mut pong = TestStructRefLists::decode(&bytes);
             b.iter(||  {
-                let mut bytes = vec![0u8; 1000];
-                pong.encode_into(&mut bytes);
+                pong.encode();
             });
         });
     }

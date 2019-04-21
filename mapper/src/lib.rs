@@ -6,7 +6,7 @@
 pub mod list;
 pub mod little_endian;
 
-
+use smallvec::SmallVec;
 
 use std::convert::{TryInto,TryFrom};
 pub use list::{RefList, List};
@@ -15,8 +15,8 @@ use std::io::prelude::{Write, Read};
 pub trait Encoder {
 
     #[inline(always)]
-    fn encode(&self) -> Vec<u8> {
-        let mut buffer = Vec::with_capacity(self.size_enc());
+    fn encode(&self) -> SmallVec<[u8; 128]> {
+        let mut buffer = SmallVec::with_capacity(self.size_enc());
         self.encode_into(&mut buffer);
         buffer
     }
