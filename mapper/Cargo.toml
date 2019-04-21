@@ -1,0 +1,8 @@
+[package]
+name = "mapper"
+version = "0.1.0"
+authors = ["Vova <vova616@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+smallvec = "0.6.9"
