@@ -14,11 +14,12 @@ impl<'b, T : Decoder<'b, Output=T> + 'b, S> List<T , S> {
     #[inline(always)]
     fn new(mut buffer: &'b [u8], len: usize) -> Self {
         let mut new_list = Self::with_capacity(len);
-        for _ in (0..len) {
+        unsafe { new_list.items.set_len(len); }
+        new_list.items.iter_mut().for_each(|item| {
             let size = T::size(buffer);
-            new_list.push(T::decode(&buffer[..size]));
+            *item = T::decode(&buffer[..size]);
             buffer = &buffer[size..];
-        }
+        });
         new_list
     }
 

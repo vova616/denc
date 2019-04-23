@@ -30,16 +30,165 @@ mod tests {
         assert_eq!(4, add_two(2));
     }
 
+    #[test]
+    fn decrypt_simd() {
+        let mut bytes = [0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let mut bytes_test = bytes.clone();
+        cryptor::decrypt2(&mut bytes[..]);
+        cryptor::decrypt(&mut bytes_test[..]);
+        assert_eq!(&bytes[..], &bytes_test[..]);
+
+
+        let mut bytes = [0x70, 0xAF, 0x8D, 0x6A, 0x00, 0x93, 0x91, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x67, 0x00, 0x3D, 0x1B, 0x18, 0x13, 0x0F, 0x03, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  0x00, 0x00, ];
+        let mut bytes_test = bytes.clone();
+        cryptor::decrypt2(&mut bytes[..]);
+        cryptor::decrypt(&mut bytes_test[..]);
+        assert_eq!(&bytes[..], &bytes_test[..]);
+
+        let mut bytes = [0x70, 0xAF, 0x8D, 0x6A, 0x00, 0x93, 0x91, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x67, 0x00, 0x3D, 0x1B, 0x18, 0x13, 0x0F, 0x03, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1, 0x00, 0x00, 0x3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  0x00, 0x00, ];
+        let mut bytes_test = bytes.clone();
+        cryptor::decrypt2(&mut bytes[..]);
+        cryptor::decrypt(&mut bytes_test[..]);
+        assert_eq!(&bytes[..], &bytes_test[..]);
+
+        let mut small_rng = SmallRng::from_entropy();
+        (0..10).for_each(|_| {
+            let mut bytes = vec![0u8; 32*32];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let mut bytes_test = bytes.clone();
+            let mut bytes_test2 = bytes.clone();
+            let mut bytes_test3 = bytes.clone();
+            cryptor::decrypt(&mut bytes[..]);
+            cryptor::decrypt2(&mut bytes_test[..]);
+            cryptor::decrypt3(&mut bytes_test2[..]);
+            cryptor::decrypt_hybrid(&mut bytes_test3[..]);
+            assert_eq!(&bytes[..], &bytes_test[..]);
+            assert_eq!(&bytes[..], &bytes_test2[..]);
+            assert_eq!(&bytes[..], &bytes_test3[..]);
+        });
+
+        (0..10).for_each(|_| {
+            let mut bytes = vec![0u8; 1011];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let mut bytes_test = bytes.clone();
+            cryptor::decrypt(&mut bytes[..]);
+            cryptor::decrypt_hybrid(&mut bytes_test[..]);
+            assert_eq!(&bytes[..], &bytes_test[..]);
+        });
+    }
+
+    #[test]
+    fn test_move() {
+        let mut small_rng = SmallRng::from_entropy();
+        let size = 32;
+        (0..5).for_each(|i| {
+            let mut bytes = vec![0u8; size*32 + i*10];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let mut bytes2 = bytes.clone();
+            let len = (size*20 + i*10);
+            let excess = len % size;
+            cryptor::move_excess(&mut bytes[..], len, size);
+            //cryptor::move_excess_simd(&mut bytes2[..], len, size);
+            assert_eq!(&bytes[..len], &bytes2[..len]);
+            assert_eq!(&bytes[len..len + excess], &bytes2[len..len + excess]);
+        });
+    }
+
+
     #[bench]
     fn bench_decrypt(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
         (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
+            let mut bytes = vec![0u8; 32*5];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();
             }
             b.iter(||  {
                 cryptor::decrypt(&mut bytes[..]);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decrypt2(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 32*5];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::decrypt2(&mut bytes[..]);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decrypt3(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 32*5];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::decrypt3(&mut bytes[..]);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decrypt_hybrid(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|i| {
+            let mut bytes = vec![0u8; 32*5 + i * 11];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::decrypt_hybrid(&mut bytes[..]);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
+
+
+    #[bench]
+    fn bench_move(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|i| {
+            let mut bytes = vec![0u8; 32*32 + i];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::move_excess(&mut bytes[..], 32*20 + i, 32);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_move_simd(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|i| {
+            let mut bytes = vec![0u8; 32*32 + i];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::move_excess_simd(&mut bytes[..], 32*20 + i, 32);
+                test::black_box(&bytes);
             });
         });
     }
@@ -47,6 +196,15 @@ mod tests {
     use mapper_proc::{ MapperDec, MapperEnc};
     use mapper::{Decoder,Encoder, List, RefList};
     use rand::SeedableRng;
+
+    #[derive(MapperDec, MapperEnc)]
+    pub struct TestStructTiny {
+        pub a87: u16,
+        pub a32: u32,
+        pub a35: u32,
+        pub a23: u16,
+        pub a42: u8,
+    }
 
     #[derive(MapperDec, MapperEnc)]
     pub struct TestStructSmall {
@@ -184,6 +342,21 @@ mod tests {
         pub a42: RefList<'a, u32, u8>,
         pub a35: RefList<'a, u8, u8>,
         pub a23: RefList<'a, u16, u8>,
+    }
+
+    #[bench]
+    fn bench_decode_tiny(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                let mut pong = TestStructTiny::decode(test::black_box(&bytes));
+                test::black_box(pong);
+            });
+        });
     }
 
 

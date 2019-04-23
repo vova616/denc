@@ -155,25 +155,24 @@ async fn login_server() -> Result<(), failure::Error> {
 
         runtime::spawn(async move {
             let mut buff = BytesMut::with_capacity(1024*10);
+            let mut index = 0;
             loop {
-                buff.reserve(1024);
-                unsafe { buff.set_len(1024); }
-                match await!(reader.read(&mut buff[..1024])) {
+                buff.resize(index+1024, 0);
+                match await!(reader.read(&mut buff[index..index+1024])) {
                     Ok(len) => {
                         println!("recv len {}", len);
+
+                        index += len;
                         if len == 0 {
                             break;
                         }
-                        if len < 2 {
+                        if index < 2 {
                             continue;
                         }
 
-                        let len = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                        if buff.len() < len {
-                            continue;
-                        } else {
-                            let mut bytes = buff.split_to(len);
-
+                        let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
+                        while size <= index {
+                            let mut bytes = buff.split_to(size);
                             loop {
                                 match await!(recv_sender.send(bytes.clone())) {
                                     Ok(x) => {
@@ -187,6 +186,13 @@ async fn login_server() -> Result<(), failure::Error> {
                                         println!("Channel not ready {}", e);
                                     },
                                 }
+                            }
+
+                            index -= size;
+                            if index >= 2 {
+                                size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
+                            } else {
+                                break;
                             }
                         }
 
@@ -341,29 +347,26 @@ async fn char_server() -> Result<(), failure::Error> {
             await!(client.send(buff));
         }
 
-        //let mut reader = FramedRead::new(reader, ProtocolCodec{});
-
         runtime::spawn(async move {
             let mut buff = BytesMut::with_capacity(1024*10);
+            let mut index = 0;
             loop {
-                buff.reserve(1024);
-                unsafe { buff.set_len(1024); }
-                match await!(reader.read(&mut buff[..1024])) {
+                buff.resize(index+1024, 0);
+                match await!(reader.read(&mut buff[index..index+1024])) {
                     Ok(len) => {
                         println!("recv len {}", len);
+
+                        index += len;
                         if len == 0 {
                             break;
                         }
-                        if len < 2 {
+                        if index < 2 {
                             continue;
                         }
 
-                        let len = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                        if buff.len() < len {
-                            continue;
-                        } else {
-                            let mut bytes = buff.split_to(len);
-
+                        let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
+                        while size <= index {
+                            let mut bytes = buff.split_to(size);
                             loop {
                                 match await!(recv_sender.send(bytes.clone())) {
                                     Ok(x) => {
@@ -377,6 +380,13 @@ async fn char_server() -> Result<(), failure::Error> {
                                         println!("Channel not ready {}", e);
                                     },
                                 }
+                            }
+
+                            index -= size;
+                            if index >= 2 {
+                                size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
+                            } else {
+                                break;
                             }
                         }
 
