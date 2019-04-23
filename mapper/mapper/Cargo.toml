@@ -7,6 +7,11 @@ edition = "2018"
 [dependencies]
 smallvec = "0.6.9"
 mapper-derive = { path = "../mapper_derive", optional = true }
+mapper-derive = { path = "../mapper-derive", optional = true }
+
+
+[dev-dependencies]
+rand = "0.6"
 
 [features]
 default = ["derive"]
