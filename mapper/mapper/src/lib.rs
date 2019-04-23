@@ -12,6 +12,9 @@ use std::convert::{TryInto,TryFrom};
 pub use list::{RefList, List};
 use std::io::prelude::{Write, Read};
 
+#[cfg(feature = "derive")]
+pub use mapper_derive::*;
+
 pub trait Encoder {
 
     #[inline(always)]

@@ -1,6 +1,5 @@
 
-use mapper_proc::{ MapperDec, MapperEnc};
-use mapper::{Decoder,Encoder};
+use mapper::{Decoder,Encoder, MapperDec, MapperEnc};
 
 #[derive(Debug)]
 pub struct Pong {
@@ -23,8 +22,7 @@ pub struct Header {
 }
 
 pub mod Send {
-    use mapper_proc::{ MapperDec, MapperEnc};
-    use mapper::{Decoder,Encoder};
+    use mapper::{Decoder,Encoder, MapperDec, MapperEnc};
 
     #[derive(MapperEnc)]
     pub struct Hello {

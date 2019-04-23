@@ -81,25 +81,6 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_move() {
-        let mut small_rng = SmallRng::from_entropy();
-        let size = 32;
-        (0..5).for_each(|i| {
-            let mut bytes = vec![0u8; size*32 + i*10];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let mut bytes2 = bytes.clone();
-            let len = (size*20 + i*10);
-            let excess = len % size;
-            cryptor::move_excess(&mut bytes[..], len, size);
-            //cryptor::move_excess_simd(&mut bytes2[..], len, size);
-            assert_eq!(&bytes[..len], &bytes2[..len]);
-            assert_eq!(&bytes[len..len + excess], &bytes2[len..len + excess]);
-        });
-    }
-
 
     #[bench]
     fn bench_decrypt(b: &mut Bencher) {
@@ -163,38 +144,8 @@ mod tests {
 
 
 
-    #[bench]
-    fn bench_move(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|i| {
-            let mut bytes = vec![0u8; 32*32 + i];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            b.iter(||  {
-                cryptor::move_excess(&mut bytes[..], 32*20 + i, 32);
-                test::black_box(&bytes);
-            });
-        });
-    }
 
-    #[bench]
-    fn bench_move_simd(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|i| {
-            let mut bytes = vec![0u8; 32*32 + i];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            b.iter(||  {
-                cryptor::move_excess_simd(&mut bytes[..], 32*20 + i, 32);
-                test::black_box(&bytes);
-            });
-        });
-    }
-
-    use mapper_proc::{ MapperDec, MapperEnc};
-    use mapper::{Decoder,Encoder, List, RefList};
+    use mapper::{Decoder,Encoder, List, RefList,  MapperDec, MapperEnc};
     use rand::SeedableRng;
 
     #[derive(MapperDec, MapperEnc)]
