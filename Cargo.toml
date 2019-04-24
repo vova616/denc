@@ -8,13 +8,13 @@ edition = "2018"
 bytes = "0.4.12"
 evmap = "4.2.2"
 mapper = { path = "./mapper/mapper" }
-futures-preview = {version = "0.3.0-alpha.13"}
+futures-preview = {version = "0.3.0-alpha.14"}
 rand = "0.6.5"
 radix_fmt = "0.1.1"
 lazy_static = "1.3.0"
 packed_simd = {version = "0.3.3", features = ["into_bits"]}
 failure = "0.1.5"
-runtime = "0.3.0-alpha.1"
+runtime = "0.3.0-alpha.2"
 runtime-raw = "0.3.0-alpha.1"
 runtime-native = "0.3.0-alpha.1"
 

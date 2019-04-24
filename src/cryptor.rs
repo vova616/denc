@@ -48,7 +48,7 @@ pub fn decrypt_simd32(buff: &mut [u8]) {
 pub fn decrypt_hybrid_16(buff: &mut [u8]) {
     let mut key =  u8x16::new(0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,0x71,0x6d,0x66,0x61,0x6b);
     let zero = u8x16::splat(0);
-    for mut slice in buff.chunks_exact_mut(u8x32::lanes()) {
+    for mut slice in buff.chunks_exact_mut(u8x16::lanes()) {
         let data = u8x16::from_slice_unaligned(slice);
         let y = key.eq(data) | zero.eq(data);
         let data = y.select(data, data ^ key);

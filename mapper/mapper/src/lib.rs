@@ -16,7 +16,6 @@ use std::io::prelude::{Write, Read};
 pub use mapper_derive::*;
 
 pub trait Encoder {
-
     #[inline(always)]
     fn encode(&self) -> SmallVec<[u8; 1024]> {
         let mut buffer = smallvec![0u8; self.size_enc()];

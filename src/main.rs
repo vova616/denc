@@ -48,7 +48,17 @@ struct Client<T> {
 
 //impl<T: tokio::prelude::SinkExt<SinkItem=BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> Client<T> {
 impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> Client<T> {
-    pub async fn send(&self, bytes: BytesMut) {
+    pub async fn send(&self, mut bytes: BytesMut) {
+        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
+        bytes[0] = lenBytes[0];
+        bytes[1] = lenBytes[1];
+        println!("sending {:02X?}", &bytes[..]);
+
+        if bytes[2] == 1 {
+            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
+        }
+
+
         let mut writer = self.writer.clone();
         loop {
             match await!(writer.send(bytes.clone())) {
@@ -66,7 +76,36 @@ impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> 
         }
     }
 
+    pub async fn send_packet(&self, packet: impl Encoder) {
+        let mut bytes = packet.encode();
+        let mut bytes = BytesMut::from(&bytes[..]);
+
+        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
+        bytes[0] = lenBytes[0];
+        bytes[1] = lenBytes[1];
+
+        if bytes[2] == 1 {
+            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
+        }
+
+        let mut writer = self.writer.clone();
+        loop {
+            match await!(writer.send(bytes.clone())) {
+                Ok(x) => {
+                    break;
+                },
+                Err(e) => {
+                    if e.is_disconnected() {
+                        println!("Send Channel: Disconnected");
+                        return
+                    }
+                    println!("Channel not ready {:?}", e);
+                },
+            }
+        }
+    }
 }
+
 
 use std::collections::HashMap;
 
@@ -134,6 +173,8 @@ async fn login_server() -> Result<(), failure::Error> {
 
     let mut listener = TcpListener::bind("0.0.0.0:2000")?;
     println!("Listening on {}", listener.local_addr()?);
+
+    use packet::send;
 
     let mut incoming = listener.incoming();
     while let Some(stream) = await!(incoming.next()) {
@@ -226,9 +267,8 @@ async fn login_server() -> Result<(), failure::Error> {
 
                         match header.id {
                             0x65 => {
-                                let buff = [0x0c,0x00,0x01,0x00,0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-                                let buff = BytesMut::from(&buff[..]);
-                                await!(client.send(buff));
+                                let packet = packet::Packet::new(send::Hello::new());
+                                await!(client.send_packet(packet));
                             },
                             0xBEBC207 => {
                                 let buff = [0x49, 0x00, 0x01, 0x00, 0x01, 0xC2, 0xEB, 0x0B, 0x00, 0xE7, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x56, 0x6F, 0x76, 0x63, 0x68, 0x69, 0x6B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
@@ -285,14 +325,7 @@ async fn login_server() -> Result<(), failure::Error> {
             loop {
                 match await!(send_receiver.next()) {
                     Some(mut bytes) => {
-                        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
-                        bytes[0] = lenBytes[0];
-                        bytes[1] = lenBytes[1];
                         println!("sent {:02X?}", &bytes[..]);
-
-                        if bytes[2] == 1 {
-                            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
-                        }
                         await!(writer.write_all(&bytes[..]));
                     },
                     None => {
@@ -455,16 +488,8 @@ async fn char_server() -> Result<(), failure::Error> {
             loop {
                 match await!(send_receiver.next()) {
                     Some(mut bytes) => {
-                        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
-                        bytes[0] = lenBytes[0];
-                        bytes[1] = lenBytes[1];
                         println!("sent {:02X?}", &bytes[..]);
-
-                        if bytes[2] == 1 {
-                            cryptor::encrypt(&mut bytes[4..]);
-                        }
                         await!(writer.write_all(&bytes[..]));
-
                     },
                     None => {
                         println!("Send Channel: closed");
@@ -478,9 +503,7 @@ async fn char_server() -> Result<(), failure::Error> {
     Ok(())
 }
 
-fn encode_into<T : Read>(buff: &T) {
 
-}
 
 #[runtime::main]
 async fn main() -> Result<(), failure::Error> {
@@ -514,7 +537,6 @@ async fn main() -> Result<(), failure::Error> {
 
         let mut arr = [0u8; 30];
         pong.encode_into(&mut &mut arr[..]);
-        encode_into(&&arr[..]);
         dbg!(&arr[..pong.size_enc()]);
     }
 
