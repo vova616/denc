@@ -217,7 +217,7 @@ async fn login_server() -> Result<(), failure::Error> {
                 match await!(recv_receiver.next()) {
                     Some(mut bytes) => {
                         if bytes[2] == 0x01 {
-                            cryptor::decrypt(&mut bytes[4..]);
+                            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
                         }
                         let header = packet::Header::decode(&bytes[..8]);
                         let mut data = &mut bytes[8..];
@@ -291,7 +291,7 @@ async fn login_server() -> Result<(), failure::Error> {
                         println!("sent {:02X?}", &bytes[..]);
 
                         if bytes[2] == 1 {
-                            cryptor::encrypt(&mut bytes[4..]);
+                            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
                         }
                         await!(writer.write_all(&bytes[..]));
                     },
