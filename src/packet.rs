@@ -1,5 +1,6 @@
 
 use mapper::{Decoder,Encoder, MapperDec, MapperEnc};
+use bytes::{Bytes, BytesMut, Buf, BufMut, IntoBuf};
 
 #[derive(Debug)]
 pub struct Pong {
@@ -72,6 +73,14 @@ impl<T : PacketID> Packet<T> {
 
     pub fn new_raw(data: T) -> Packet<T> {
         Packet{header: Header::new_raw(T::ID), data: data}
+    }
+
+}
+
+impl<T: Encoder + PacketID> From<Packet<T>> for BytesMut  {
+    fn from(packet: Packet<T>) -> Self {
+        let mut bytes = packet.encode();
+        BytesMut::from(&bytes[..])
     }
 }
 

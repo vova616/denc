@@ -75,35 +75,6 @@ impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> 
             }
         }
     }
-
-    pub async fn send_packet(&self, packet: impl Encoder) {
-        let mut bytes = packet.encode();
-        let mut bytes = BytesMut::from(&bytes[..]);
-
-        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
-        bytes[0] = lenBytes[0];
-        bytes[1] = lenBytes[1];
-
-        if bytes[2] == 1 {
-            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
-        }
-
-        let mut writer = self.writer.clone();
-        loop {
-            match await!(writer.send(bytes.clone())) {
-                Ok(x) => {
-                    break;
-                },
-                Err(e) => {
-                    if e.is_disconnected() {
-                        println!("Send Channel: Disconnected");
-                        return
-                    }
-                    println!("Channel not ready {:?}", e);
-                },
-            }
-        }
-    }
 }
 
 
@@ -268,7 +239,7 @@ async fn login_server() -> Result<(), failure::Error> {
                         match header.id {
                             0x65 => {
                                 let packet = packet::Packet::new(send::Hello::new());
-                                await!(client.send_packet(packet));
+                                await!(client.send(packet.into()));
                             },
                             0xBEBC207 => {
                                 let buff = [0x49, 0x00, 0x01, 0x00, 0x01, 0xC2, 0xEB, 0x0B, 0x00, 0xE7, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x56, 0x6F, 0x76, 0x63, 0x68, 0x69, 0x6B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
