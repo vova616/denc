@@ -57,20 +57,16 @@ pub fn decrypt_hybrid_16(buff: &mut [u8]) {
     }
 
     let mut temp = [0u8; 16];
-    let index = buff.len()-buff.len()%16;
+    let rem = buff.len()%temp.len();
+    let index = buff.len()-rem;
     let buff = &mut buff[index..];
 
-    buff.iter().zip(temp.iter_mut()).for_each(|(data, temp)| {
-        *temp = *data
-    });
+    temp[..rem].copy_from_slice(buff);
     let data = u8x16::from_slice_unaligned(&temp);
     let y = key.eq(data) | zero.eq(data);
     let data = y.select(data, data ^ key);
     data.write_to_slice_unaligned(&mut temp);
-
-    buff.iter_mut().zip(temp.iter()).for_each(|(data, temp)| {
-        *data = *temp
-    });
+    buff.copy_from_slice(&temp[..rem]);
 }
 
 #[inline(always)]
@@ -88,20 +84,16 @@ pub fn decrypt_hybrid_32(buff: &mut [u8]) {
     }
 
     let mut temp = [0u8; 32];
-    let index = buff.len()-buff.len()%32;
+    let rem = buff.len()%temp.len();
+    let index = buff.len()-rem;
     let buff = &mut buff[index..];
 
-    buff.iter().zip(temp.iter_mut()).for_each(|(data, temp)| {
-        *temp = *data
-    });
+    temp[..rem].copy_from_slice(buff);
     let data = u8x32::from_slice_unaligned(&temp);
     let y = key.eq(data) | zero.eq(data);
     let data = y.select(data, data ^ key);
     data.write_to_slice_unaligned(&mut temp);
-
-    buff.iter_mut().zip(temp.iter()).for_each(|(data, temp)| {
-        *data = *temp
-    });
+    buff.copy_from_slice(&temp[..rem]);
 }
 
 #[inline(always)]
@@ -122,20 +114,16 @@ pub fn decrypt_hybrid_64(buff: &mut [u8]) {
     }
 
     let mut temp = [0u8; 64];
-    let index = buff.len()-buff.len()%64;
+    let rem = buff.len()%temp.len();
+    let index = buff.len()-rem;
     let buff = &mut buff[index..];
 
-    buff.iter().zip(temp.iter_mut()).for_each(|(data, temp)| {
-        *temp = *data
-    });
+    temp[..rem].copy_from_slice(buff);
     let data = u8x64::from_slice_unaligned(&temp);
     let y = key.eq(data) | zero.eq(data);
     let data = y.select(data, data ^ key);
     data.write_to_slice_unaligned(&mut temp);
-
-    buff.iter_mut().zip(temp.iter()).for_each(|(data, temp)| {
-        *data = *temp
-    });
+    buff.copy_from_slice(&temp[..rem]);
 }
 
 
