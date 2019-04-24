@@ -2,19 +2,6 @@
 use mapper::{Decoder,Encoder, MapperDec, MapperEnc};
 use bytes::{Bytes, BytesMut, Buf, BufMut, IntoBuf};
 
-#[derive(Debug)]
-pub struct Pong {
-    pub payload: u8
-}
-
-#[derive(MapperDec, MapperEnc)]
-pub struct Rora {
-   pub payload: u8,
-   pub payload2: u16,
-   pub payloadList: mapper::List<u16, u8>,
-   pub payloadList2: [mapper::List<u8, u8>; 2]
-}
-
 #[derive(MapperDec, MapperEnc)]
 pub struct Header {
     pub size: u16,
@@ -34,6 +21,10 @@ impl Header {
 
 pub trait PacketID {
     const ID: u32;
+}
+
+pub trait ClientHandler {
+
 }
 
 pub mod send {
@@ -56,9 +47,24 @@ pub mod send {
     }
 }
 
-#[derive(Debug)]
-pub struct Ping {
-    payload: u16
+pub mod recv {
+    use mapper::{Decoder,Encoder, MapperDec, MapperEnc};
+    use crate::packet::PacketID;
+
+    #[derive(MapperDec)]
+    pub struct Hello {
+        pub payload: u8
+    }
+
+    impl Hello {
+        pub fn new() -> Hello {
+            Hello{payload: 0}
+        }
+    }
+
+    impl PacketID for Hello {
+        const ID: u32 = 0x66;
+    }
 }
 
 pub struct Packet<T> {
@@ -78,6 +84,8 @@ impl<T : PacketID> Packet<T> {
 }
 
 impl<T: Encoder + PacketID> From<Packet<T>> for BytesMut  {
+
+    #[inline]
     fn from(packet: Packet<T>) -> Self {
         let mut bytes = packet.encode();
         BytesMut::from(&bytes[..])

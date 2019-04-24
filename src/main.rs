@@ -55,7 +55,7 @@ impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> 
         println!("sending {:02X?}", &bytes[..]);
 
         if bytes[2] == 1 {
-            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
+            cryptor::decrypt_hybrid_64(&mut bytes[4..]);
         }
 
 
@@ -229,7 +229,7 @@ async fn login_server() -> Result<(), failure::Error> {
                 match await!(recv_receiver.next()) {
                     Some(mut bytes) => {
                         if bytes[2] == 0x01 {
-                            cryptor::decrypt_hybrid_16(&mut bytes[4..]);
+                            cryptor::decrypt_hybrid_64(&mut bytes[4..]);
                         }
                         let header = packet::Header::decode(&bytes[..8]);
                         let mut data = &mut bytes[8..];
@@ -479,37 +479,6 @@ async fn char_server() -> Result<(), failure::Error> {
 #[runtime::main]
 async fn main() -> Result<(), failure::Error> {
 
-    {
-        use mapper::Decoder;
-
-        let buffer = [0x1, 0x02, 0x00, 0x02, 0xff, 0x00, 0x01, 0x00, 0x01, 0x02, 0x03, 0x01, 0x02, 0x03, 0x04];
-        let mut pong = packet::Rora::decode(&buffer);
-        drop(buffer);
-
-        dbg!(pong.payload);
-        dbg!(pong.payload2);
-        pong.payloadList.iter().for_each(|n| {
-            dbg!(n);
-        });
-        pong.payloadList.iter().for_each(|n| {
-            dbg!(n);
-        });
-        for item in &pong.payloadList2 {
-            item.iter().for_each(|n| {
-                dbg!(n);
-            });
-        }
-
-
-        use mapper::Encoder;
-        dbg!(pong.encode());
-        pong.payloadList = vec![0,1,2,3,4].into();
-        dbg!(pong.encode());
-
-        let mut arr = [0u8; 30];
-        pong.encode_into(&mut &mut arr[..]);
-        dbg!(&arr[..pong.size_enc()]);
-    }
 
     /*
     let mock = mock! {

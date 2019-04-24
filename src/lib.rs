@@ -79,11 +79,14 @@ mod tests {
             }
             let mut bytes_test = bytes.clone();
             let mut bytes_test2 = bytes.clone();
+            let mut bytes_test3 = bytes.clone();
             cryptor::decrypt(&mut bytes[..]);
             cryptor::decrypt_hybrid_16(&mut bytes_test[..]);
             cryptor::decrypt_hybrid_32(&mut bytes_test2[..]);
+            cryptor::decrypt_hybrid_64(&mut bytes_test3[..]);
             assert_eq!(&bytes[..], &bytes_test[..]);
             assert_eq!(&bytes[..], &bytes_test2[..]);
+            assert_eq!(&bytes[..], &bytes_test3[..]);
         });
     }
 
@@ -133,11 +136,27 @@ mod tests {
         });
     }
 
+
+    #[bench]
+    fn bench_decrypt_hybrid_16(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|i| {
+            let mut bytes = vec![0u8; 32*5-1];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(||  {
+                cryptor::decrypt_hybrid_16(&mut bytes[..]);
+                test::black_box(&bytes);
+            });
+        });
+    }
+
     #[bench]
     fn bench_decrypt_hybrid_32(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
         (0..5).for_each(|i| {
-            let mut bytes = vec![0u8; 32*5 + i * 3];
+            let mut bytes = vec![0u8; 32*5-1];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();
             }
@@ -149,18 +168,20 @@ mod tests {
     }
 
     #[bench]
-    fn bench_decrypt_hybrid_16(b: &mut Bencher) {
+    fn bench_decrypt_hybrid_64(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
         (0..5).for_each(|i| {
-            let mut bytes = vec![0u8; 32*5 + i * 3];
+            let mut bytes = vec![0u8; 32*5-1];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_hybrid_16(&mut bytes[..]);
+                cryptor::decrypt_hybrid_64(&mut bytes[..]);
                 test::black_box(&bytes);
             });
         });
     }
+
+
 
 }
