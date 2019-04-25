@@ -139,6 +139,10 @@ impl AsyncRead for Mock {
 }
 */
 
+
+
+
+
 async fn login_server() -> Result<(), failure::Error> {
     let ids = AtomicUsize::new(0);
 
@@ -478,6 +482,11 @@ async fn char_server() -> Result<(), failure::Error> {
 
 #[runtime::main]
 async fn main() -> Result<(), failure::Error> {
+
+    {
+        use color_backtrace;
+        color_backtrace::install();
+    }
 
 
     /*

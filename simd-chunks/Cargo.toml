@@ -1,0 +1,8 @@
+[package]
+name = "simd-chunks"
+version = "0.1.0"
+authors = ["Vovchik <vova616@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+packed_simd = {version = "0.3.3"}

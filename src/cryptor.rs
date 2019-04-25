@@ -3,6 +3,8 @@ use packed_simd::FromCast;
 use packed_simd::Cast;
 use packed_simd::{FromBits, IntoBits};
 
+use simd_chunks::SimdChucks;
+
 const KEY: &[u8; 11] = b"qmfaktnpgjs";
 
 #[inline(always)]
@@ -47,26 +49,12 @@ pub fn decrypt_simd32(buff: &mut [u8]) {
 #[inline(always)]
 pub fn decrypt_hybrid_16(buff: &mut [u8]) {
     let mut key =  u8x16::new(0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,0x71,0x6d,0x66,0x61,0x6b);
-    let zero = u8x16::splat(0);
-    for mut slice in buff.chunks_exact_mut(u8x16::lanes()) {
-        let data = u8x16::from_slice_unaligned(slice);
-        let y = key.eq(data) | zero.eq(data);
+    u8x16::simd_chunks(buff, |data| {
+        let y = key.eq(data) | u8x16::splat(0).eq(data);
         let data = y.select(data, data ^ key);
-        data.write_to_slice_unaligned(&mut slice);
-        key = shuffle!(key,  [5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9])
-    }
-
-    let mut temp = [0u8; 16];
-    let rem = buff.len()%temp.len();
-    let index = buff.len()-rem;
-    let buff = &mut buff[index..];
-
-    temp[..rem].copy_from_slice(buff);
-    let data = u8x16::from_slice_unaligned(&temp);
-    let y = key.eq(data) | zero.eq(data);
-    let data = y.select(data, data ^ key);
-    data.write_to_slice_unaligned(&mut temp);
-    buff.copy_from_slice(&temp[..rem]);
+        key = shuffle!(key,  [5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9]);
+        data
+    });
 }
 
 #[inline(always)]
@@ -74,26 +62,12 @@ pub fn decrypt_hybrid_32(buff: &mut [u8]) {
     let mut key =  u8x32::new(0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,
                               0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,
                               0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a);
-    let zero = u8x32::splat(0);
-    for mut slice in buff.chunks_exact_mut(u8x32::lanes()) {
-        let data = u8x32::from_slice_unaligned(slice);
-        let y = key.eq(data) | zero.eq(data);
+    u8x32::simd_chunks(buff, |data| {
+        let y = key.eq(data) | u8x32::splat(0).eq(data);
         let data = y.select(data, data ^ key);
-        data.write_to_slice_unaligned(&mut slice);
-        key = shuffle!(key, [10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8]);
-    }
-
-    let mut temp = [0u8; 32];
-    let rem = buff.len()%temp.len();
-    let index = buff.len()-rem;
-    let buff = &mut buff[index..];
-
-    temp[..rem].copy_from_slice(buff);
-    let data = u8x32::from_slice_unaligned(&temp);
-    let y = key.eq(data) | zero.eq(data);
-    let data = y.select(data, data ^ key);
-    data.write_to_slice_unaligned(&mut temp);
-    buff.copy_from_slice(&temp[..rem]);
+        key = shuffle!(key,  [10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8]);
+        data
+    });
 }
 
 #[inline(always)]
@@ -104,27 +78,14 @@ pub fn decrypt_hybrid_64(buff: &mut [u8]) {
                               0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,
                               0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67,0x6a,0x73,
                               0x71,0x6d,0x66,0x61,0x6b,0x74,0x6e,0x70,0x67);
-    let zero = u8x64::splat(0);
-    for mut slice in buff.chunks_exact_mut(u8x64::lanes()) {
-        let data = u8x64::from_slice_unaligned(slice);
-        let y = key.eq(data) | zero.eq(data);
+    u8x64::simd_chunks(buff, |data| {
+        let y = key.eq(data) | u8x64::splat(0).eq(data);
         let data = y.select(data, data ^ key);
-        data.write_to_slice_unaligned(&mut slice);
-        key = shuffle!(key, [9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6]);
-    }
-
-    let mut temp = [0u8; 64];
-    let rem = buff.len()%temp.len();
-    let index = buff.len()-rem;
-    let buff = &mut buff[index..];
-
-    temp[..rem].copy_from_slice(buff);
-    let data = u8x64::from_slice_unaligned(&temp);
-    let y = key.eq(data) | zero.eq(data);
-    let data = y.select(data, data ^ key);
-    data.write_to_slice_unaligned(&mut temp);
-    buff.copy_from_slice(&temp[..rem]);
+        key = shuffle!(key,  [9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6,7,8,9,10,0,1,2,3,4,5,6]);
+        data
+    });
 }
+
 
 
 #[inline(always)]
@@ -133,5 +94,11 @@ pub fn encrypt(buf: &mut [u8]) {
         if !(*data == 0 || *data == k) {
             *data ^= k;
         }
+    });
+}
+
+pub fn xor(buff: &mut [u8]) {
+    u8x64::simd_chunks(buff, |data| {
+        data ^ 0x15
     });
 }
