@@ -87,7 +87,7 @@ impl<T: Encoder + PacketID> From<Packet<T>> for BytesMut  {
 
     #[inline]
     fn from(packet: Packet<T>) -> Self {
-        let mut bytes = packet.encode();
+        let bytes = packet.encode();
         BytesMut::from(&bytes[..])
     }
 }

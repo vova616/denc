@@ -1,7 +1,7 @@
-use packed_simd::{u8x16, u8x32, u8x64, f32x8,  shuffle};
-use packed_simd::FromCast;
-use packed_simd::Cast;
-use packed_simd::{FromBits, IntoBits};
+use packed_simd::{u8x16, u8x32, u8x64,  shuffle};
+
+
+
 
 use simd_chunks::*;
 

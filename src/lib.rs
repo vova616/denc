@@ -1,12 +1,8 @@
 #![feature(test)]
 #![feature(const_fn)]
 
-#[macro_use]
-extern crate lazy_static;
-
-
 extern crate test;
-use std::collections::HashSet;
+
 
 
 pub fn add_two(a: i32) -> i32 {
@@ -15,18 +11,19 @@ pub fn add_two(a: i32) -> i32 {
 
 mod cryptor;
 
-use radix_fmt::radix;
-use rand::FromEntropy;
-use rand::rngs::SmallRng;
-use rand::Rng;
+
+
+
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use test::Bencher;
 
-    use mapper::{Decoder,Encoder, List, RefList,  MapperDec, MapperEnc};
-    use rand::SeedableRng;
+    
+    use rand::{FromEntropy, Rng};
+    use rand::rngs::SmallRng;
 
     #[test]
     fn it_works() {
@@ -141,7 +138,7 @@ mod tests {
     #[bench]
     fn bench_decrypt_hybrid_16(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|i| {
+        (0..5).for_each(|_i| {
             let mut bytes = vec![0u8; 32*5-1];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();
@@ -156,7 +153,7 @@ mod tests {
     #[bench]
     fn bench_decrypt_hybrid_32(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|i| {
+        (0..5).for_each(|_i| {
             let mut bytes = vec![0u8; 32*5-1];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();
@@ -171,7 +168,7 @@ mod tests {
     #[bench]
     fn bench_decrypt_hybrid_64(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|i| {
+        (0..5).for_each(|_i| {
             let mut bytes = vec![0u8; 32*5-1];
             for b in bytes.iter_mut() {
                 *b = small_rng.gen();

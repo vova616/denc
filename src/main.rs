@@ -1,39 +1,21 @@
-#![feature(await_macro, async_await, futures_api, generators)]
+#![feature(await_macro, async_await, generators)]
 #![feature(const_fn)]
 
 #[macro_use]
 extern crate lazy_static;
 
-use std::pin::*;
-
-use std::io;
-
 use futures::prelude::*;
 use runtime::net::tcp::{TcpListener, TcpStream};
 
-use std::net::SocketAddr;
-
-use std::net::Shutdown;
-use std::{thread, time};
-
 use std::sync::atomic::{AtomicUsize, Ordering};
-use bytes::{Bytes, BytesMut, Buf, BufMut, IntoBuf};
-use std::sync::{RwLock, Arc, Mutex};
-use std::str;
+use bytes::{Bytes, BytesMut, Buf,  IntoBuf};
+use std::sync::{RwLock, Arc};
 
-use futures::{FutureExt, TryFutureExt, SinkExt};
+use futures::{SinkExt};
 use futures::channel::mpsc;
-use futures::stream::Buffered;
-use futures::{Future};
 
-use runtime_native;
 
-use std::io::prelude::*;
-
-use evmap;
-use evmap::shallow_copy::CopyValue;
-
-use mapper::{Decoder,Encoder};
+use mapper::{Decoder};
 
 pub mod cryptor;
 pub mod packet;
@@ -49,9 +31,9 @@ struct Client<T> {
 //impl<T: tokio::prelude::SinkExt<SinkItem=BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> Client<T> {
 impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> Client<T> {
     pub async fn send(&self, mut bytes: BytesMut) {
-        let lenBytes = u16::to_le_bytes(bytes.len() as u16);
-        bytes[0] = lenBytes[0];
-        bytes[1] = lenBytes[1];
+        let len_bytes = u16::to_le_bytes(bytes.len() as u16);
+        bytes[0] = len_bytes[0];
+        bytes[1] = len_bytes[1];
         println!("sending {:02X?}", &bytes[..]);
 
         if bytes[2] == 1 {
@@ -62,7 +44,7 @@ impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> 
         let mut writer = self.writer.clone();
         loop {
             match await!(writer.send(bytes.clone())) {
-                Ok(x) => {
+                Ok(_x) => {
                     break;
                 },
                 Err(e) => {
@@ -153,16 +135,16 @@ async fn login_server() -> Result<(), failure::Error> {
 
     let mut incoming = listener.incoming();
     while let Some(stream) = await!(incoming.next()) {
-        let mut stream: TcpStream = stream.unwrap();
+        let stream: TcpStream = stream.unwrap();
 
 
         let (mut reader,mut writer) = stream.split();
 
-        let (mut send_sender,mut send_receiver) = mpsc::channel::<BytesMut>(20);
+        let (send_sender,mut send_receiver) = mpsc::channel::<BytesMut>(20);
 
         let id = ids.fetch_add(1, Ordering::SeqCst);
 
-        let mut client = Arc::new(Client{id: id, user_id: None, writer: send_sender});
+        let client = Arc::new(Client{id: id, user_id: None, writer: send_sender});
         let (mut recv_sender,mut recv_receiver) = mpsc::channel::<BytesMut>(20);
 
 
@@ -188,10 +170,10 @@ async fn login_server() -> Result<(), failure::Error> {
 
                         let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
                         while size <= index {
-                            let mut bytes = buff.split_to(size);
+                            let bytes = buff.split_to(size);
                             loop {
                                 match await!(recv_sender.send(bytes.clone())) {
-                                    Ok(x) => {
+                                    Ok(_x) => {
                                         break;
                                     },
                                     Err(e) => {
@@ -236,7 +218,7 @@ async fn login_server() -> Result<(), failure::Error> {
                             cryptor::decrypt_hybrid_64(&mut bytes[4..]);
                         }
                         let header = packet::Header::decode(&bytes[..8]);
-                        let mut data = &mut bytes[8..];
+                        let data = &mut bytes[8..];
                         println!("recv {:02X?}", &data[..]);
                         println!("header {:02X?}", header.id);
 
@@ -299,9 +281,9 @@ async fn login_server() -> Result<(), failure::Error> {
         runtime::spawn(async move {
             loop {
                 match await!(send_receiver.next()) {
-                    Some(mut bytes) => {
+                    Some(bytes) => {
                         println!("sent {:02X?}", &bytes[..]);
-                        await!(writer.write_all(&bytes[..]));
+                        await!(writer.write_all(&bytes[..])).unwrap();
                     },
                     None => {
                         println!("Send Channel: closed");
@@ -324,16 +306,16 @@ async fn char_server() -> Result<(), failure::Error> {
 
     let mut incoming = listener.incoming();
     while let Some(stream) = await!(incoming.next()) {
-        let mut stream: TcpStream = stream.unwrap();
+        let stream: TcpStream = stream.unwrap();
 
 
         let (mut reader,mut writer) = stream.split();
 
-        let (mut send_sender,mut send_receiver) = mpsc::channel::<BytesMut>(20);
+        let (send_sender,mut send_receiver) = mpsc::channel::<BytesMut>(20);
 
         let id = ids.fetch_add(1, Ordering::SeqCst);
 
-        let mut client = Arc::new(Client{id: id, user_id: None, writer: send_sender});
+        let client = Arc::new(Client{id: id, user_id: None, writer: send_sender});
         let (mut recv_sender,mut recv_receiver) = mpsc::channel::<BytesMut>(20);
 
         let clients = clients.clone();
@@ -374,10 +356,10 @@ async fn char_server() -> Result<(), failure::Error> {
 
                         let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
                         while size <= index {
-                            let mut bytes = buff.split_to(size);
+                            let bytes = buff.split_to(size);
                             loop {
                                 match await!(recv_sender.send(bytes.clone())) {
-                                    Ok(x) => {
+                                    Ok(_x) => {
                                         break;
                                     },
                                     Err(e) => {
@@ -462,9 +444,9 @@ async fn char_server() -> Result<(), failure::Error> {
         runtime::spawn(async move {
             loop {
                 match await!(send_receiver.next()) {
-                    Some(mut bytes) => {
+                    Some(bytes) => {
                         println!("sent {:02X?}", &bytes[..]);
-                        await!(writer.write_all(&bytes[..]));
+                        await!(writer.write_all(&bytes[..])).unwrap();
                     },
                     None => {
                         println!("Send Channel: closed");
@@ -503,7 +485,7 @@ async fn main() -> Result<(), failure::Error> {
     */
 
     runtime::spawn(login_server());
-    await!(char_server());
+    await!(char_server())?;
 
     Ok(())
 }
