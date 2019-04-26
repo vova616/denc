@@ -1,9 +1,9 @@
-use packed_simd::{u8x16, u8x32, u8x64,  shuffle};
+use packed_simd::{u8x16, u8x32, u8x64, f32x8,  shuffle};
 use packed_simd::FromCast;
 use packed_simd::Cast;
 use packed_simd::{FromBits, IntoBits};
 
-use simd_chunks::SimdChucks;
+use simd_chunks::*;
 
 const KEY: &[u8; 11] = b"qmfaktnpgjs";
 
@@ -97,8 +97,3 @@ pub fn encrypt(buf: &mut [u8]) {
     });
 }
 
-pub fn xor(buff: &mut [u8]) {
-    u8x64::simd_chunks(buff, |data| {
-        data ^ 0x15
-    });
-}

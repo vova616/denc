@@ -100,11 +100,12 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt(&mut bytes[..]);
+                cryptor::decrypt( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
     }
+
 
     #[bench]
     fn bench_decrypt_simd16(b: &mut Bencher) {
@@ -115,7 +116,7 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_simd16(&mut bytes[..]);
+                cryptor::decrypt_simd16( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
@@ -130,7 +131,7 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_simd32(&mut bytes[..]);
+                cryptor::decrypt_simd32( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
@@ -146,7 +147,7 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_hybrid_16(&mut bytes[..]);
+                cryptor::decrypt_hybrid_16( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
@@ -161,7 +162,7 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_hybrid_32(&mut bytes[..]);
+                cryptor::decrypt_hybrid_32( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
@@ -176,7 +177,7 @@ mod tests {
                 *b = small_rng.gen();
             }
             b.iter(||  {
-                cryptor::decrypt_hybrid_64(&mut bytes[..]);
+                cryptor::decrypt_hybrid_64( test::black_box(&mut bytes[..]));
                 test::black_box(&bytes);
             });
         });
