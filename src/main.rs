@@ -11,9 +11,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use bytes::{Bytes, BytesMut, Buf,  IntoBuf};
 use std::sync::{RwLock, Arc};
 
-use futures::{SinkExt};
+use futures::{SinkExt, Poll};
 use futures::channel::mpsc;
-
 
 use mapper::{Decoder};
 
@@ -61,7 +60,6 @@ impl<T: Sink<BytesMut, SinkError=mpsc::SendError> + std::marker::Unpin + Clone> 
 
 
 use std::collections::HashMap;
-
 #[derive(Debug)]
 pub struct ProtocolCodec;
 
@@ -122,8 +120,83 @@ impl AsyncRead for Mock {
 */
 
 
+struct PacketStream<R> {
+    inner: R,
+    buffer: BytesMut,
+    index: usize
+}
+
+impl<R> PacketStream<R> {
+    fn next_packet(&mut self) -> Option<BytesMut> {
+        if self.index > 2 {
+            let mut size = u16::from_le_bytes([self.buffer[0], self.buffer[1]]) as usize;
+            if size <= self.index {
+                self.index -= size;
+                Some(self.buffer.split_to(size))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    fn new(inner: R) -> PacketStream<R> {
+        PacketStream{inner: inner, buffer: BytesMut::with_capacity(1024*10), index: 0}
+    }
+}
+
+// The receiver does not ever take a Pin to the inner T
+impl<R> Unpin for PacketStream<R> {}
 
 
+use futures::task::Context;
+use futures::prelude::AsyncRead;
+use futures::prelude::AsyncReadExt;
+
+impl <R: AsyncRead + std::marker::Unpin> Stream for PacketStream<R> {
+    type Item = BytesMut;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        let stream = self.get_mut();
+        stream.buffer.resize( stream.index+1024, 0);
+        match std::pin::Pin::new(&mut stream.inner).poll_read(cx, &mut stream.buffer[stream.index..stream.index+1024]) {
+            Poll::Ready(Ok(len)) => {
+                if len == 0 {
+                    return Poll::Ready(None)
+                }
+                stream.index += len;
+                let result = stream.next_packet();
+                if result.is_none() {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(result)
+                }
+            },
+            Poll::Ready(Err(e)) => {
+                let result = stream.next_packet();
+                if result.is_none() {
+                    Poll::Ready(None)
+                } else {
+                    Poll::Ready(result)
+                }
+            },
+            Poll::Pending => {
+                let result = stream.next_packet();
+                if result.is_none() {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(result)
+                }
+            }
+        }
+    }
+
+
+}
 
 async fn login_server() -> Result<(), failure::Error> {
     let ids = AtomicUsize::new(0);
@@ -137,6 +210,7 @@ async fn login_server() -> Result<(), failure::Error> {
     while let Some(stream) = await!(incoming.next()) {
         let stream: TcpStream = stream.unwrap();
 
+        println!("We got client {:?}", stream.peer_addr());
 
         let (mut reader,mut writer) = stream.split();
 
@@ -152,53 +226,14 @@ async fn login_server() -> Result<(), failure::Error> {
         //let mut reader = FramedRead::new(reader, ProtocolCodec{});
 
         runtime::spawn(async move {
-            let mut buff = BytesMut::with_capacity(1024*10);
-            let mut index = 0;
-            loop {
-                buff.resize(index+1024, 0);
-                match await!(reader.read(&mut buff[index..index+1024])) {
-                    Ok(len) => {
-                        println!("recv len {}", len);
-
-                        index += len;
-                        if len == 0 {
-                            break;
-                        }
-                        if index < 2 {
-                            continue;
-                        }
-
-                        let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                        while size <= index {
-                            let bytes = buff.split_to(size);
-                            loop {
-                                match await!(recv_sender.send(bytes.clone())) {
-                                    Ok(_x) => {
-                                        break;
-                                    },
-                                    Err(e) => {
-                                        if e.is_disconnected() {
-                                            println!("Send Channel: Disconnected");
-                                            return
-                                        }
-                                        println!("Channel not ready {}", e);
-                                    },
-                                }
-                            }
-
-                            index -= size;
-                            if index >= 2 {
-                                size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                            } else {
-                                break;
-                            }
-                        }
-
-                    },
-                    Err(e)  => {
-                        println!("Error on recv client {:?}", e);
-                        break;
-                    }
+            let mut reader = PacketStream::new(reader);
+            match await!(recv_sender.send_all(&mut reader)) {
+                _ => {
+                    //Done sending :)
+                    println!("Done sending :)")
+                }
+                Err(e) => {
+                    println!("error {:?}", e)
                 }
             }
         });
@@ -338,53 +373,14 @@ async fn char_server() -> Result<(), failure::Error> {
         }
 
         runtime::spawn(async move {
-            let mut buff = BytesMut::with_capacity(1024*10);
-            let mut index = 0;
-            loop {
-                buff.resize(index+1024, 0);
-                match await!(reader.read(&mut buff[index..index+1024])) {
-                    Ok(len) => {
-                        println!("recv len {}", len);
-
-                        index += len;
-                        if len == 0 {
-                            break;
-                        }
-                        if index < 2 {
-                            continue;
-                        }
-
-                        let mut size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                        while size <= index {
-                            let bytes = buff.split_to(size);
-                            loop {
-                                match await!(recv_sender.send(bytes.clone())) {
-                                    Ok(_x) => {
-                                        break;
-                                    },
-                                    Err(e) => {
-                                        if e.is_disconnected() {
-                                            println!("Send Channel: Disconnected");
-                                            return
-                                        }
-                                        println!("Channel not ready {}", e);
-                                    },
-                                }
-                            }
-
-                            index -= size;
-                            if index >= 2 {
-                                size = u16::from_le_bytes([buff[0], buff[1]]) as usize;
-                            } else {
-                                break;
-                            }
-                        }
-
-                    },
-                    Err(e)  => {
-                        println!("Error on recv client {:?}", e);
-                        break;
-                    }
+            let mut reader = PacketStream::new(reader);
+            match await!(recv_sender.send_all(&mut reader)) {
+                _ => {
+                    //Done sending :)
+                    println!("Done sending :)")
+                }
+                Err(e) => {
+                    println!("error {:?}", e)
                 }
             }
 
