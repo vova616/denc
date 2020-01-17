@@ -34,27 +34,27 @@ One Way:
 
 */
 
-pub trait Decode<T>: Decoder {
+pub trait Decode<T: Decoder> {
     const SIZE: usize;
 
-    fn decode<'a>(data: &'a mut Self) -> T;
-    fn size(data: &Self) -> usize;
+    fn decode<'a>(data: &'a mut T) -> Self;
+    fn size(data: &T) -> usize;
 }
 
 pub trait Decoder {
     fn ensure(&mut self, len: usize);
 }
 
-impl<V, Dec: Decoder> Decode<V> for Dec {
+impl<V, Dec: Decoder> Decode<Dec> for V {
     default const SIZE: usize = 0;
 
-    default fn decode<'a>(data: &'a mut Self) -> V {
+    default fn decode<'a>(data: &'a mut Dec) -> V {
         unimplemented!()
     }
 
     #[inline(always)]
-    default fn size(_: &Self) -> usize {
-        <Self as Decode<V>>::SIZE
+    default fn size(_: &Dec) -> usize {
+        <V as Decode<Dec>>::SIZE
     }
 }
 
@@ -74,33 +74,33 @@ impl<'a> Decoder for LittleEndian<'a> {
     }
 }
 
-impl<'a> Decode<u8> for LittleEndian<'a> {
+impl<'a> Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut Self) -> u8 {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> u8 {
         let r = data.0[0];
         data.advance(1);
         r
     }
 }
 
-impl<'a> Decode<u16> for LittleEndian<'a> {
+impl<'a> Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut Self) -> u16 {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> u16 {
         let r = u16::from_le_bytes([data.0[0], data.0[1]]);
         data.advance(2);
         r
     }
 }
 
-impl<'a> Decode<&'a [u8]> for LittleEndian<'a> {
+impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut Self) -> &'a [u8] {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> &'a [u8] {
         let (x, y) = data.0.split_at(1);
         data.0 = y;
         x
@@ -118,17 +118,20 @@ mod tests {
     use rand::Rng;
     use rand::SeedableRng;
 
+    #[test]
+    fn test() {}
+
     pub struct TestStructTiny {
         pub a: u16,
         pub b: u8,
     }
 
-    impl<Dec: Decoder> Decode<TestStructTiny> for Dec {
-        const SIZE: usize = <Dec as Decode<u16>>::SIZE + <Dec as Decode<u8>>::SIZE;
+    impl<Dec: Decoder> Decode<Dec> for TestStructTiny {
+        const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u8 as Decode<Dec>>::SIZE;
 
-        fn decode(mut decoder: &mut Dec) -> TestStructTiny {
-            let a: u16 = <Dec as Decode<u16>>::decode(decoder);
-            let b: u8 = <Dec as Decode<u8>>::decode(decoder);
+        fn decode(decoder: &mut Dec) -> TestStructTiny {
+            let a: u16 = <u16 as Decode<Dec>>::decode(decoder);
+            let b: u8 = <u8 as Decode<Dec>>::decode(decoder);
             TestStructTiny { a: a, b: b }
         }
     }
@@ -146,33 +149,37 @@ mod tests {
         pub e: &'a [u8],
     }
 
-    impl<'a, Dec: Decoder> Decode<TestStructTinyRef<'a>> for Dec {
-        const SIZE: usize = <Dec as Decode<u16>>::SIZE
-            + <Dec as Decode<u8>>::SIZE
-            + <Dec as Decode<&'a [u8]>>::SIZE
-            + <Dec as Decode<&'a [u8]>>::SIZE;
+    impl<'a, Dec: Decoder> Decode<Dec> for TestStructTinyRef<'a> {
+        const SIZE: usize = <u16 as Decode<Dec>>::SIZE
+            + <u8 as Decode<Dec>>::SIZE
+            + <&'a [u8] as Decode<Dec>>::SIZE
+            + <&'a [u8] as Decode<Dec>>::SIZE;
 
         fn decode(decoder: &mut Dec) -> TestStructTinyRef<'a> {
-            let mut const_size = <Dec as Decode<u16>>::SIZE
-                + <Dec as Decode<u8>>::SIZE
-                + <Dec as Decode<&'a [u8]>>::SIZE
-                + <Dec as Decode<&'a [u8]>>::SIZE;
+            let mut const_size = <u16 as Decode<Dec>>::SIZE
+                + <u8 as Decode<Dec>>::SIZE
+                + <&'a [u8] as Decode<Dec>>::SIZE
+                + <&'a [u8] as Decode<Dec>>::SIZE;
+
             decoder.ensure(const_size);
-            decoder.ensure(<Dec as Decode<u16>>::size(decoder));
-            let a: u16 = <Dec as Decode<u16>>::decode(decoder);
+            decoder.ensure(<u16 as Decode<Dec>>::size(decoder));
+            let a: u16 = <u16 as Decode<Dec>>::decode(decoder);
+            const_size -= <u16 as Decode<Dec>>::SIZE;
 
-            const_size -= <Dec as Decode<u16>>::SIZE;
             decoder.ensure(const_size);
-            decoder.ensure(<Dec as Decode<u8>>::size(decoder));
-            let b: u8 = <Dec as Decode<u8>>::decode(decoder);
+            decoder.ensure(<u8 as Decode<Dec>>::size(decoder));
+            let b: u8 = <u8 as Decode<Dec>>::decode(decoder);
+            const_size -= <u8 as Decode<Dec>>::SIZE;
 
-            decoder.ensure(<Dec as Decode<&'a [u8]>>::SIZE + <Dec as Decode<&'a [u8]>>::SIZE);
-            decoder.ensure(<Dec as Decode<&'a [u8]>>::size(decoder));
-            let c: &'a [u8] = <Dec as Decode<&'a [u8]>>::decode(decoder);
+            decoder.ensure(const_size);
+            decoder.ensure(<&'a [u8] as Decode<Dec>>::size(decoder));
+            let c: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder);
+            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
 
-            decoder.ensure(<Dec as Decode<&'a [u8]>>::SIZE);
-            decoder.ensure(<Dec as Decode<&'a [u8]>>::size(decoder));
-            let e: &'a [u8] = <Dec as Decode<&'a [u8]>>::decode(decoder);
+            decoder.ensure(const_size);
+            decoder.ensure(<&'a [u8] as Decode<Dec>>::size(decoder));
+            let e: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder);
+            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
 
             TestStructTinyRef {
                 a: a,
@@ -186,15 +193,15 @@ mod tests {
     #[test]
     fn test_decode_tiny() {
         let mut bytes = LittleEndian(&[1u8, 0, 2]);
-        let a: u8 = LittleEndian::decode(&mut bytes);
+        let a: u8 = Decode::decode(&mut bytes);
 
         let mut bytes = LittleEndian(&[1u8, 0, 2]);
-        let a: TestStructTiny = LittleEndian::decode(&mut bytes);
+        let a: TestStructTiny = Decode::decode(&mut bytes);
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
         let mut bytes = LittleEndian(&[1u8, 0, 2, 1, 3]);
-        let a: TestStructTinyRef = LittleEndian::decode(&mut bytes);
+        let a: TestStructTinyRef = Decode::decode(&mut bytes);
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
         assert_eq!(a.c, &[1u8]);
@@ -204,12 +211,12 @@ mod tests {
     #[test]
     fn test_encode_tiny_derive() {
         let mut bytes = LittleEndian(&[1u8, 0, 2]);
-        let a: TestStructTiny = LittleEndian::decode(&mut bytes);
+        let a: TestStructTiny = Decode::decode(&mut bytes);
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
         let mut bytes = LittleEndian(&[1u8, 0, 2]);
-        let a: TestStructTinyDerive = LittleEndian::decode(&mut bytes);
+        let a: TestStructTinyDerive = Decode::decode(&mut bytes);
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
     }

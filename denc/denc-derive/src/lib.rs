@@ -17,26 +17,24 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let name = &f.ident;
         let ty = &f.ty;
         quote! {
-            println!("a {}", const_size);
             decoder.ensure(const_size);
-            decoder.ensure(<Dec as Decode<#ty>>::size(decoder));
-            let #name = <Dec as Decode<#ty>>::decode(decoder);
-            const_size -= <Dec as Decode<#ty>>::SIZE;
-            println!("b {}", const_size);
+            decoder.ensure(<#ty as Decode<Dec>>::size(decoder));
+            let #name = <#ty as Decode<Dec>>::decode(decoder);
+            const_size -= <#ty as Decode<Dec>>::SIZE;
         }
     });
     let decoder_size_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = &f.ident;
         let ty = &f.ty;
         quote! {
-            + <Dec as Decode<#ty>>::SIZE
+            + <#ty as Decode<Dec>>::SIZE
         }
     });
     let decoder_size_impl2 = input.fields.iter().enumerate().map(|(i, f)| {
         let name = &f.ident;
         let ty = &f.ty;
         quote! {
-            + <Dec as Decode<#ty>>::SIZE
+            + <#ty as Decode<Dec>>::SIZE
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -51,7 +49,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let output = quote! {
-        impl<#ty_generics Dec: Decoder> Decode<#name #ty_generics #where_clause> for Dec {
+        impl<#ty_generics Dec: Decoder> Decode<Dec> for #name #ty_generics #where_clause {
             const SIZE: usize = 0 #(
                 #decoder_size_impl
              )*;
