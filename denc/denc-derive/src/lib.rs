@@ -13,51 +13,30 @@ use syn;
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
-    let decoder_store_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
-        let ty = &f.ty;
-        match ty {
-            syn::Type::Array(array) => {
-                let ty = &array.elem;
-                let len = &array.len;
-                quote! {
-                   (0..#len).into_iter().fold(0, |sum, x| sum + <#ty>::size(&buffer[sum..])) as usize
-                }
-            }
-            _ => {
-                quote! {
-                    <#ty as Decode<'a, Decr>>::size(&buffer[index..])
-                }
-            }
-        }
-    });
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = &f.ident;
         let ty = &f.ty;
-        match ty {
-            syn::Type::Array(array) => {
-                let ty = &array.elem;
-                let len = &array.len;
-                quote! {
-                   let mut #name: [#ty; #len];
-                   unsafe {
-                       #name = std::mem::uninitialized();
-                   }
-                   let _s_target = decoder;
-                   for item in &mut #name {
-                       _s_buffer = &_s_buffer[_s_size..];
-                       _s_size = <<#ty> as Decoder>::size(&_s_buffer);
-                       let #name = <#ty>::decode(&_s_buffer[.._s_size]);
-                   }
-                }
-            }
-            _ => {
-                quote! {
-                   let _s_size = <#ty as Decode<'a, Decr>>::size(decoder);
-                   let (_s_target, decoder) = decoder.split_at(_s_size);
-                   let #name = <#ty as Decode<'a, Decr>>::decode(_s_target);
-                }
-            }
+        quote! {
+            println!("a {}", const_size);
+            decoder.ensure(const_size);
+            decoder.ensure(<Dec as Decode<#ty>>::size(decoder));
+            let #name = <Dec as Decode<#ty>>::decode(decoder);
+            const_size -= <Dec as Decode<#ty>>::SIZE;
+            println!("b {}", const_size);
+        }
+    });
+    let decoder_size_impl = input.fields.iter().enumerate().map(|(i, f)| {
+        let name = &f.ident;
+        let ty = &f.ty;
+        quote! {
+            + <Dec as Decode<#ty>>::SIZE
+        }
+    });
+    let decoder_size_impl2 = input.fields.iter().enumerate().map(|(i, f)| {
+        let name = &f.ident;
+        let ty = &f.ty;
+        quote! {
+            + <Dec as Decode<#ty>>::SIZE
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -72,26 +51,26 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let output = quote! {
-        impl<'a, Data, Decr: Decoder<'a, Data = Data>> Decode<'a, Decr> for #name #ty_generics #where_clause {
+        impl<#ty_generics Dec: Decoder> Decode<#name #ty_generics #where_clause> for Dec {
+            const SIZE: usize = 0 #(
+                #decoder_size_impl
+             )*;
+
             #[inline]
-            fn decode(decoder: &'a [Data]) -> Self {
+            fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
+                let mut const_size = 0 #(
+                    #decoder_size_impl2
+                )*;
+
                 #(
-                   #decoder_decode_impl
+                    #decoder_decode_impl
                 )*
-                Self{
+
+                #name {
                     #(
                         #decoder_decode_return_impl,
                     )*
                 }
-            }
-
-            #[inline]
-            fn size(buffer: &'a [Data]) -> usize {
-                let mut index = 0;
-                #(
-                   index += #decoder_store_impl;
-                )*
-                index
             }
         }
     };
