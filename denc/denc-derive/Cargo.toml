@@ -1,0 +1,19 @@
+[package]
+name = "denc-derive"
+version = "0.1.0"
+authors = ["Vova <vova616@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+name = "denc_derive"
+path = "src/lib.rs"
+doctest = false
+
+
+[dependencies]
+syn = {version = "0.15.26", features = ["full"]}
+quote = "0.6.11"
+proc-macro2 = "0.4"
+
+

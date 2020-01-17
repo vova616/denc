@@ -1,0 +1,17 @@
+[package]
+name = "denc"
+version = "0.1.0"
+authors = ["Vova <vova616@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+smallvec = "0.6.9"
+denc-derive = { path = "../denc-derive", optional = true }
+
+
+[dev-dependencies]
+rand = "0.6"
+
+[features]
+default = ["derive"]
+derive = ["denc-derive"]
