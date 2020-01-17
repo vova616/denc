@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 pub trait SimdChucks<T> where Self: Sized {
 
     #[inline(always)]
-    fn simd_chunks<F>(slice: &mut [T], mut func: F) where F: FnMut(Self) -> Self;
+    fn simd_chunks<F>(slice: &mut [T], func: F) where F: FnMut(Self) -> Self;
 }
 
 
