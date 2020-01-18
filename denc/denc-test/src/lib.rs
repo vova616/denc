@@ -149,34 +149,36 @@ mod tests {
     #[bench]
     fn bench_decode_small(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
-
-        let mut bytes = vec![0u8; 100];
-        for b in bytes.iter_mut() {
-            *b = small_rng.gen();
-        }
-        b.iter(|| {
-            test::black_box(&bytes);
-            let mut bytes = LittleEndian(&bytes[..]);
-            let mut pong: TestStructSmall = Decode::decode(&mut bytes);
-            test::black_box(pong);
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndian(&bytes[..]);
+                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                test::black_box(pong);
+            });
         });
     }
 
     #[bench]
     fn bench_decode_small2(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
-
-        let mut bytes = vec![0u8; 100];
-        for b in bytes.iter_mut() {
-            *b = small_rng.gen();
-        }
-        let bytes = &bytes[..] as &[u8];
-        let mut buffer = [0u8; 1024];
-        b.iter(|| {
-            test::black_box(&bytes);
-            let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
-            let mut pong: TestStructSmall = Decode::decode(&mut bytes);
-            test::black_box(pong);
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..]);
+                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                test::black_box(pong);
+            });
         });
     }
 }
