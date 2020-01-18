@@ -4,36 +4,43 @@
 extern crate proc_macro;
 
 use self::proc_macro::TokenStream;
-use self::proc_macro2::{Ident, Span};
-use proc_macro2;
 use quote::quote;
 use syn;
+
+extern crate proc_macro2;
+use self::proc_macro2::TokenStream as TokenStream2;
 
 #[proc_macro_derive(MapperDec)]
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
+        let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
+
+        let concatenated = format!("_dec_{}", name);
+        let size_name = syn::Ident::new(&concatenated, name.span());
+
         quote! {
-            decoder.fill_buffer(const_size);
+            decoder.fill_buffer( #size_name );
             let #name = <#ty as Decode<Dec>>::decode(decoder);
-            const_size -= <#ty as Decode<Dec>>::SIZE;
         }
     });
-    let decoder_size_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
+    let types: Vec<syn::Type> = input
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(i, f)| f.ty.clone())
+        .collect();
+    let decoder_sizes_impl = input.fields.iter().enumerate().map(|(i, f)| {
+        let name = f.ident.as_ref().unwrap();
+        let concatenated = format!("_dec_{}", name);
+        let name = syn::Ident::new(&concatenated, name.span());
+
         let ty = &f.ty;
+        let inner_types = types.iter().skip(i);
         quote! {
-            + <#ty as Decode<Dec>>::SIZE
-        }
-    });
-    let decoder_size_impl2 = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
-        let ty = &f.ty;
-        quote! {
-            + <#ty as Decode<Dec>>::SIZE
+            let #name: usize = #( <#inner_types as Decode<Dec>>::SIZE )+*;
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -49,15 +56,15 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         impl<#ty_generics Dec: Decoder> Decode<Dec> for #name #ty_generics #where_clause {
-            const SIZE: usize = 0 #(
-                #decoder_size_impl
-             )*;
+            const SIZE: usize = #(
+                <#types as Decode<Dec>>::SIZE
+             )+*;
 
             #[inline]
             fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
-                let mut const_size = 0 #(
-                    #decoder_size_impl2
-                )*;
+                #(
+                    #decoder_sizes_impl
+                )*
 
                 #(
                     #decoder_decode_impl

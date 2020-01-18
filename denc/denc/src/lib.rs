@@ -153,6 +153,22 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
         self.cursor.start += len;
         buff
     }
+
+    #[inline(always)]
+    fn fill_buffer2<const LEN: usize>(&mut self) {
+        while self.cursor.len() < LEN {
+            if self.buffer.len() < LEN + self.cursor.start {
+                assert!(self.buffer.len() >= LEN);
+                self.buffer.copy_within(self.cursor.clone(), 0);
+                self.cursor = 0..self.cursor.len();
+            }
+            self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
+                Ok(n) => n,
+                Err(e) => panic!(e),
+            };
+        }
+        assert!(self.cursor.len() >= LEN);
+    }
 }
 
 impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
