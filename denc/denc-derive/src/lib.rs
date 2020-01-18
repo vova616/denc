@@ -17,8 +17,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let name = &f.ident;
         let ty = &f.ty;
         quote! {
-            decoder.ensure(const_size);
-            decoder.ensure(<#ty as Decode<Dec>>::size(decoder));
+            decoder.fill_buffer(const_size);
             let #name = <#ty as Decode<Dec>>::decode(decoder);
             const_size -= <#ty as Decode<Dec>>::SIZE;
         }
