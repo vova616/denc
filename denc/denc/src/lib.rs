@@ -144,6 +144,16 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
 
     #[inline(always)]
     fn buff_advance<'b>(&'b mut self, len: usize) -> &'b [u8] {
+        self.fill_buffer(len);
+        let buff = &self.buffer[self.cursor.clone()];
+        self.cursor.start += len;
+        buff
+    }
+}
+
+impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
+    #[inline(always)]
+    fn fill_buffer(&mut self, len: usize) {
         while self.cursor.len() < len {
             if self.buffer.len() < len + self.cursor.start {
                 assert!(self.buffer.len() >= len);
@@ -154,29 +164,8 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
                 Ok(n) => n,
                 Err(e) => panic!(e),
             };
-            }
-        assert!(self.cursor.len() >= len);
-        let buff = &self.buffer[self.cursor.clone()];
-        self.cursor.start += len;
-        buff
-    }
-}
-
-impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
-    #[inline(always)]
-    fn fill_buffer(&mut self, len_hint: usize) {
-        while self.cursor.len() < len_hint {
-            if self.buffer.len() < len_hint + self.cursor.start {
-                assert!(self.buffer.len() >= len_hint);
-                self.buffer.copy_within(self.cursor.clone(), 0);
-                self.cursor = 0..self.cursor.len();
-            }
-            self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-                Ok(n) => n,
-                Err(e) => panic!(e),
-            };
         }
-        assert!(self.cursor.len() >= len_hint);
+        assert!(self.cursor.len() >= len);
     }
 }
 
@@ -251,7 +240,6 @@ mod tests {
         const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u8 as Decode<Dec>>::SIZE;
 
         fn decode(decoder: &mut Dec) -> TestStructTiny {
-            fill_buffer_smart::<Dec, { <u16 as Decode<Dec>>::DYNAMIC }>(decoder, 10);
             let a: u16 = <u16 as Decode<Dec>>::decode(decoder);
             let b: u8 = <u8 as Decode<Dec>>::decode(decoder);
             TestStructTiny { a: a, b: b }
@@ -268,9 +256,7 @@ mod tests {
         fn decode(decoder: &mut Dec) -> TestStruct {
             let _dec_a: usize = <u16 as Decode<Dec>>::SIZE + <u32 as Decode<Dec>>::SIZE;
             let _dec_b: usize = <u32 as Decode<Dec>>::SIZE;
-            fill_buffer_smart::<Dec, { true }>(decoder, _dec_a);
             let a = <u16 as Decode<Dec>>::decode(decoder);
-            fill_buffer_smart::<Dec, { <u32 as Decode<Dec>>::DYNAMIC }>(decoder, _dec_b);
             let b = <u32 as Decode<Dec>>::decode(decoder);
             TestStruct { a, b }
         }
