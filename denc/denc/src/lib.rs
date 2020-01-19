@@ -137,28 +137,16 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
         &self.buffer[self.cursor.clone()]
     }
 
-    #[inline(always)]
-    fn buff_advance<'b>(&'b mut self, len: usize) -> &'b [u8] {
-        if self.cursor.len() < len {
-            if self.buffer.len() - self.cursor.start < len {
-                self.buffer.copy_within(self.cursor.clone(), 0);
-                self.cursor = 0..self.cursor.len();
-            }
-            self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-                Ok(n) => n,
-                Err(e) => panic!(e),
-            }
-        }
-        let buff = &self.buffer[self.cursor.clone()];
-        self.cursor.start += len;
-        buff
-    }
+    /*
+        Next Refactor:
+        Remove fill_buffer from each line?
+    */
 
     #[inline(always)]
-    fn fill_buffer2<const LEN: usize>(&mut self) {
-        while self.cursor.len() < LEN {
-            if self.buffer.len() < LEN + self.cursor.start {
-                assert!(self.buffer.len() >= LEN);
+    fn buff_advance<'b>(&'b mut self, len: usize) -> &'b [u8] {
+        while self.cursor.len() < len {
+            if self.buffer.len() < len + self.cursor.start {
+                assert!(self.buffer.len() >= len);
                 self.buffer.copy_within(self.cursor.clone(), 0);
                 self.cursor = 0..self.cursor.len();
             }
@@ -166,8 +154,11 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
                 Ok(n) => n,
                 Err(e) => panic!(e),
             };
-        }
-        assert!(self.cursor.len() >= LEN);
+            }
+        assert!(self.cursor.len() >= len);
+        let buff = &self.buffer[self.cursor.clone()];
+        self.cursor.start += len;
+        buff
     }
 }
 
@@ -243,6 +234,46 @@ mod tests {
     fn test() {
         let bytes = &[0u8, 1, 2, 3] as &[u8];
         read(&bytes);
+    }
+
+    pub struct TestStructTiny {
+        pub a: u16,
+        pub b: u8,
+    }
+
+    #[derive(MapperDec)]
+    pub struct TestStructTinyDerive {
+        pub a: u16,
+        pub b: u8,
+    }
+
+    impl<Dec: Decoder> Decode<Dec> for TestStructTiny {
+        const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u8 as Decode<Dec>>::SIZE;
+
+        fn decode(decoder: &mut Dec) -> TestStructTiny {
+            fill_buffer_smart::<Dec, { <u16 as Decode<Dec>>::DYNAMIC }>(decoder, 10);
+            let a: u16 = <u16 as Decode<Dec>>::decode(decoder);
+            let b: u8 = <u8 as Decode<Dec>>::decode(decoder);
+            TestStructTiny { a: a, b: b }
+        }
+    }
+
+    pub struct TestStruct {
+        pub a: u16,
+        pub b: u32,
+    }
+    impl<Dec: Decoder> Decode<Dec> for TestStruct {
+        const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u32 as Decode<Dec>>::SIZE;
+        #[inline]
+        fn decode(decoder: &mut Dec) -> TestStruct {
+            let _dec_a: usize = <u16 as Decode<Dec>>::SIZE + <u32 as Decode<Dec>>::SIZE;
+            let _dec_b: usize = <u32 as Decode<Dec>>::SIZE;
+            fill_buffer_smart::<Dec, { true }>(decoder, _dec_a);
+            let a = <u16 as Decode<Dec>>::decode(decoder);
+            fill_buffer_smart::<Dec, { <u32 as Decode<Dec>>::DYNAMIC }>(decoder, _dec_b);
+            let b = <u32 as Decode<Dec>>::decode(decoder);
+            TestStruct { a, b }
+        }
     }
 
     fn read<R: Read>(reader: &R) {}

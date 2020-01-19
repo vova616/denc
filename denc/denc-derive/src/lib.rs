@@ -14,33 +14,30 @@ use self::proc_macro2::TokenStream as TokenStream2;
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
-    let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = f.ident.as_ref().unwrap();
-        let ty = &f.ty;
-
-        let concatenated = format!("_dec_{}", name);
-        let size_name = syn::Ident::new(&concatenated, name.span());
-
-        quote! {
-            decoder.fill_buffer( #size_name );
-            let #name = <#ty as Decode<Dec>>::decode(decoder);
-        }
-    });
     let types: Vec<syn::Type> = input
         .fields
         .iter()
         .enumerate()
         .map(|(i, f)| f.ty.clone())
         .collect();
-    let decoder_sizes_impl = input.fields.iter().enumerate().map(|(i, f)| {
+    let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
-        let concatenated = format!("_dec_{}", name);
-        let name = syn::Ident::new(&concatenated, name.span());
-
         let ty = &f.ty;
+
+        let concatenated = format!("_dec_{}", name);
+        let size_name = syn::Ident::new(&concatenated, name.span());
         let inner_types = types.iter().skip(i);
-        quote! {
-            let #name: usize = #( <#inner_types as Decode<Dec>>::SIZE )+*;
+
+        if i == 0 {
+            quote! {
+                //decoder.fill_buffer( #( <#inner_types as Decode<Dec>>::SIZE )+* );
+                let #name = <#ty as Decode<Dec>>::decode(decoder);
+            }
+        } else {
+            quote! {
+                //decoder.fill_buffer( #( <#inner_types as Decode<Dec>>::SIZE )+* );
+                let #name = <#ty as Decode<Dec>>::decode(decoder);
+            }
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -60,11 +57,11 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 <#types as Decode<Dec>>::SIZE
              )+*;
 
+
+
             #[inline]
             fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
-                #(
-                    #decoder_sizes_impl
-                )*
+                decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
                 #(
                     #decoder_decode_impl
