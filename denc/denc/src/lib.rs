@@ -165,7 +165,7 @@ impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
                 Err(e) => panic!(e),
             };
         }
-        assert!(self.cursor.len() >= len);
+        //assert!(self.cursor.len() >= len);
     }
 }
 

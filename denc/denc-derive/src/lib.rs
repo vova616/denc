@@ -57,7 +57,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 <#types as Decode<Dec>>::SIZE
              )+*;
 
-            #[inline(always)]
+            #[inline]
             fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
                 decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
