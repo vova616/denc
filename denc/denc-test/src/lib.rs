@@ -247,7 +247,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                let mut pong: TestStructSmall = bytes.decode();
                 test::black_box(pong);
             });
         });
@@ -264,7 +264,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructLarge = Decode::decode(&mut bytes);
+                let mut pong: TestStructLarge = bytes.decode();
                 test::black_box(pong);
             });
         });
@@ -283,7 +283,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..]);
-                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                let mut pong: TestStructSmall = bytes.decode();
                 test::black_box(pong);
             });
         });
@@ -301,8 +301,8 @@ mod tests {
             let mut buffer = [0u8; 1024];
             b.iter(|| {
                 test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..]);
-                let mut pong: TestStructLarge = Decode::decode(&mut bytes);
+                let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
+                let mut pong: TestStructLarge = bytes.decode();
                 test::black_box(pong);
             });
         });

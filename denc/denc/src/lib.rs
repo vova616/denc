@@ -36,16 +36,19 @@ One Way:
 
 pub trait Decode<T: Decoder> {
     const SIZE: usize;
+    const STATIC: bool;
 
     fn decode<'a>(data: &'a mut T) -> Self;
 }
 
 pub trait Decoder {
     fn fill_buffer(&mut self, len: usize);
+    fn len(&self) -> usize;
 }
 
 impl<V, Dec: Decoder> Decode<Dec> for V {
     default const SIZE: usize = 0;
+    default const STATIC: bool = false;
 
     default fn decode<'a>(data: &'a mut Dec) -> V {
         unimplemented!()
@@ -59,12 +62,23 @@ impl<'a> LittleEndian<'a> {
     fn advance(&mut self, len: usize) {
         self.0 = &self.0[len..];
     }
+
+    #[inline(always)]
+    pub fn decode<T: Decode<Self>>(&mut self) -> T {
+        self.fill_buffer(T::SIZE);
+        T::decode(self)
+    }
 }
 
 impl<'a> Decoder for LittleEndian<'a> {
     #[inline(always)]
     fn fill_buffer(&mut self, len: usize) {
         assert!(self.0.len() >= len)
+    }
+
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -149,6 +163,12 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
         self.cursor.start += len;
         buff
     }
+
+    #[inline]
+    pub fn decode<T: Decode<Self>>(&mut self) -> T {
+        self.fill_buffer(T::SIZE);
+        T::decode(self)
+    }
 }
 
 impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
@@ -166,6 +186,11 @@ impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
             };
         }
         //assert!(self.cursor.len() >= len);
+    }
+
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.cursor.len()
     }
 }
 
@@ -218,11 +243,14 @@ mod tests {
     use test::Bencher;
 
     use super::*;
+    use rand::rngs::SmallRng;
+    use rand::FromEntropy;
+    use rand::Rng;
+    use rand::SeedableRng;
 
     #[test]
     fn test() {
         let bytes = &[0u8, 1, 2, 3] as &[u8];
-        read(&bytes);
     }
 
     pub struct TestStructTiny {
@@ -230,6 +258,37 @@ mod tests {
         pub b: u8,
     }
 
+    #[derive(MapperDec)]
+    pub struct TestStructSmall {
+        pub a87: u16,
+        pub a32: u32,
+        pub a35: u32,
+        pub a23: u16,
+        pub a42: u8,
+        pub a41: u8,
+        pub a7: u8,
+        pub a47: u8,
+        pub a53: u16,
+        pub a25: u16,
+        pub a94: u32,
+        pub a37: u32,
+        pub a11: u8,
+        pub a02: u8,
+        pub a52: u16,
+        pub a43: u8,
+        pub a57: u16,
+        pub a82: u16,
+        pub a01: u8,
+        pub a91: u32,
+        pub a62: u32,
+        pub a26: u16,
+        pub a06: u8,
+        pub a24: u16,
+        pub a71: u8,
+        pub a93: u32,
+    }
+
+    /*
     #[derive(MapperDec)]
     pub struct TestStructTinyDerive {
         pub a: u16,
@@ -262,5 +321,42 @@ mod tests {
         }
     }
 
+    #[bench]
+    fn bench_decode_small(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndian(&bytes[..]);
+                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_small2(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..]);
+                let mut pong: TestStructSmall = Decode::decode(&mut bytes);
+                test::black_box(pong);
+            });
+        });
+    }
+
     fn read<R: Read>(reader: &R) {}
+    */
 }

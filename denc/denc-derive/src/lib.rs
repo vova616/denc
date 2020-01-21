@@ -28,16 +28,16 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let size_name = syn::Ident::new(&concatenated, name.span());
         let inner_types = types.iter().skip(i);
 
-        if i == 0 {
-            quote! {
-                //decoder.fill_buffer( #( <#inner_types as Decode<Dec>>::SIZE )+* );
-                let #name = <#ty as Decode<Dec>>::decode(decoder);
+        quote! {
+            //decoder.fill_buffer( #( <#inner_types as Decode<Dec>>::SIZE )+* );
+            //let #name = <#ty as Decode<Dec>>::decode(decoder);
+            //if decoder.len() < <#ty as Decode<Dec>>::SIZE {
+            //    unreachable!();
+            //}
+            if (!<#ty as Decode<Dec>>::STATIC) {
+                assert!(decoder.len() >= <#ty as Decode<Dec>>::SIZE);
             }
-        } else {
-            quote! {
-                //decoder.fill_buffer( #( <#inner_types as Decode<Dec>>::SIZE )+* );
-                let #name = <#ty as Decode<Dec>>::decode(decoder);
-            }
+            let #name = <#ty as Decode<Dec>>::decode(decoder);
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -57,9 +57,9 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 <#types as Decode<Dec>>::SIZE
              )+*;
 
-            #[inline]
+            #[inline(always)]
             fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
-                decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
+                //decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
                 #(
                     #decoder_decode_impl
