@@ -169,21 +169,26 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
         self.fill_buffer(T::SIZE);
         T::decode(self)
     }
+
+    #[inline]
+    pub fn fill_buffer_inner(&mut self, len: usize) {
+        if self.buffer.len() < len + self.cursor.start {
+            assert!(self.buffer.len() >= len);
+            self.buffer.copy_within(self.cursor.clone(), 0);
+            self.cursor = 0..self.cursor.len();
+        }
+        self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
+            Ok(n) => n,
+            Err(e) => panic!(e),
+        };
+    }
 }
 
 impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
     #[inline(always)]
     fn fill_buffer(&mut self, len: usize) {
         while self.cursor.len() < len {
-            if self.buffer.len() < len + self.cursor.start {
-                assert!(self.buffer.len() >= len);
-                self.buffer.copy_within(self.cursor.clone(), 0);
-                self.cursor = 0..self.cursor.len();
-            }
-            self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-                Ok(n) => n,
-                Err(e) => panic!(e),
-            };
+            self.fill_buffer_inner(len);
         }
         //assert!(self.cursor.len() >= len);
     }
