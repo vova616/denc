@@ -8,6 +8,13 @@ edition = "2018"
 smallvec = "0.6.9"
 denc-derive = { path = "../denc-derive", optional = true }
 
+[profile.release]
+lto = true
+codegen-units = 1
+
+[profile.bench]
+lto = true
+codegen-units = 1
 
 [dev-dependencies]
 rand = "0.6"

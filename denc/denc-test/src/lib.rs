@@ -48,7 +48,20 @@ pub struct TestStructArray {
     pub a32: u32,
     pub a35: u32,
     pub a23: u16,
+    pub a42: u8,
+    pub a41: u8,
     pub a53: [u32; 10],
+    pub a7: u8,
+    pub a47: u8,
+}
+
+#[derive(MapperDec)]
+pub struct TestStructVec {
+    pub a53: Vec<u32>,
+    pub a87: u16,
+    pub a32: u32,
+    pub a35: u32,
+    pub a23: u16,
     pub a42: u8,
     pub a41: u8,
     pub a7: u8,
@@ -295,6 +308,24 @@ mod tests {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
                 let mut pong: TestStructArray = bytes.decode();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_vec(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            bytes[0] = 10;
+            for b in bytes.iter_mut().skip(8) {
+                *b = small_rng.gen();
+            }
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndian(&bytes[..]);
+                let mut pong: TestStructVec = bytes.decode();
                 test::black_box(pong);
             });
         });

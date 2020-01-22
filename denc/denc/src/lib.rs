@@ -136,11 +136,27 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default + Sized + Copy, const N: usize>
     #[inline(always)]
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> [V; { N }] {
         let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
-        for elem in &mut arr[..] {
+        for elem in &mut arr[..N] {
             assert!(data.len() >= V::SIZE);
             *elem = MaybeUninit::new(V::decode(data));
         }
         unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) }
+    }
+}
+
+impl<'a, V: Decode<LittleEndian<'a>>> Decode<LittleEndian<'a>> for Vec<V> {
+    const SIZE: usize = V::SIZE + 4;
+    //const STATIC: bool = false;
+
+    #[inline(always)]
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Vec<V> {
+        let size: usize = <u32 as Decode<LittleEndian<'a>>>::decode(data) as usize;
+        let mut arr = Vec::<V>::with_capacity(size as usize);
+        for _ in 0..size {
+            assert!(data.len() >= V::SIZE);
+            arr.push(V::decode(data));
+        }
+        arr
     }
 }
 

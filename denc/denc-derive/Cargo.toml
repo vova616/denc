@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Vova <vova616@gmail.com>"]
 edition = "2018"
 
+[profile.release]
+lto = true
+codegen-units = 1
+
+[profile.bench]
+lto = true
+codegen-units = 1
+
 [lib]
 proc-macro = true
 name = "denc_derive"
