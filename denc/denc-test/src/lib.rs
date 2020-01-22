@@ -43,6 +43,19 @@ pub struct TestStructSmall {
 }
 
 #[derive(MapperDec)]
+pub struct TestStructArray {
+    pub a87: u16,
+    pub a32: u32,
+    pub a35: u32,
+    pub a23: u16,
+    pub a53: [u32; 10],
+    pub a42: u8,
+    pub a41: u8,
+    pub a7: u8,
+    pub a47: u8,
+}
+
+#[derive(MapperDec)]
 pub struct TestStructLarge {
     pub a87: u16,
     pub a32: u32,
@@ -271,6 +284,23 @@ mod tests {
     }
 
     #[bench]
+    fn bench_decode_array(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndian(&bytes[..]);
+                let mut pong: TestStructArray = bytes.decode();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
     fn bench_decode_small2(b: &mut Bencher) {
         let mut small_rng = SmallRng::from_entropy();
         (0..5).for_each(|_| {
@@ -303,6 +333,25 @@ mod tests {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
                 let mut pong: TestStructLarge = bytes.decode();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_array2(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 1024];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
+                let mut pong: TestStructArray = bytes.decode();
                 test::black_box(pong);
             });
         });

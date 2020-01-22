@@ -3,6 +3,7 @@
 #![feature(const_generics)]
 #![feature(test)]
 #![feature(specialization)]
+#![feature(const_if_match)]
 
 use smallvec::{smallvec, SmallVec};
 
@@ -126,6 +127,23 @@ impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     }
 }
 
+use std::mem::{self, MaybeUninit};
+impl<'a, V: Decode<LittleEndian<'a>> + Default + Sized + Copy, const N: usize>
+    Decode<LittleEndian<'a>> for [V; N]
+{
+    const SIZE: usize = V::SIZE * N;
+
+    #[inline(always)]
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> [V; { N }] {
+        let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
+        for elem in &mut arr[..] {
+            assert!(data.len() >= V::SIZE);
+            *elem = MaybeUninit::new(V::decode(data));
+        }
+        unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) }
+    }
+}
+
 use std::ops::Range;
 
 pub struct LittleEndianReader<'a, R: Read> {
@@ -227,6 +245,26 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u32 {
         let buff = data.buff_advance(4);
         let r = u32::from_le_bytes([buff[0], buff[1], buff[2], buff[3]]);
         r
+    }
+}
+
+impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
+    Decode<LittleEndianReader<'a, R>> for [V; N]
+{
+    const SIZE: usize = if V::SIZE * N > 1024 {
+        V::SIZE
+    } else {
+        V::SIZE * N
+    };
+    const STATIC: bool = V::SIZE * N <= 1024;
+
+    #[inline(always)]
+    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> [V; { N }] {
+        let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
+        for elem in &mut arr[..] {
+            *elem = MaybeUninit::new(V::decode(data));
+        }
+        unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) }
     }
 }
 
