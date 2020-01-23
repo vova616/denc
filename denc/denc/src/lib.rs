@@ -35,15 +35,18 @@ One Way:
 
 */
 
-pub trait Decode<T: Decoder> {
+pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool;
 
-    fn decode<'a>(data: &'a mut T) -> Self;
+    fn decode<'a>(data: &'a mut T) -> Result<Self, T::Error>;
 }
 
 pub trait Decoder {
-    fn fill_buffer(&mut self, len: usize);
+    type Error;
+    const EOF: Self::Error;
+
+    fn fill_buffer(&mut self, len: usize) -> Result<(), Self::Error>;
     fn len(&self) -> usize;
 }
 
@@ -51,30 +54,47 @@ impl<V, Dec: Decoder> Decode<Dec> for V {
     default const SIZE: usize = 0;
     default const STATIC: bool = false;
 
-    default fn decode<'a>(data: &'a mut Dec) -> V {
+    default fn decode<'a>(data: &'a mut Dec) -> Result<V, Dec::Error> {
         unimplemented!()
     }
 }
 
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
+const EOF: &'static str = "EOF";
+
 impl<'a> LittleEndian<'a> {
     #[inline(always)]
-    fn advance(&mut self, len: usize) {
-        self.0 = &self.0[len..];
+    fn advance(&mut self, len: usize) -> Result<(), &'static str> {
+        self.0 = self.0.get(len..).ok_or(EOF)?;
+        Ok(())
     }
 
     #[inline(always)]
-    pub fn decode<T: Decode<Self>>(&mut self) -> T {
+    pub fn decode<T: Decode<Self>>(&mut self) -> Result<T, &'static str> {
         self.fill_buffer(T::SIZE);
         T::decode(self)
+    }
+
+    #[inline(always)]
+    fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
+        let r = self.0.get(0..len)?;
+        self.0 = self.0.get(len..)?;
+        Some(r)
     }
 }
 
 impl<'a> Decoder for LittleEndian<'a> {
+    type Error = &'static str;
+    const EOF: Self::Error = EOF;
+
     #[inline(always)]
-    fn fill_buffer(&mut self, len: usize) {
-        assert!(self.0.len() >= len)
+    fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
+        if self.0.len() < len {
+            Err(EOF)
+        } else {
+            Ok(())
+        }
     }
 
     #[inline(always)]
@@ -87,10 +107,10 @@ impl<'a> Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> u8 {
-        let r = data.0[0];
-        data.advance(1);
-        r
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u8, &'static str> {
+        let r = data.0.get(0).ok_or(EOF)?;
+        data.advance(1)?;
+        Ok(*r)
     }
 }
 
@@ -98,10 +118,10 @@ impl<'a> Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> u16 {
-        let r = u16::from_le_bytes([data.0[0], data.0[1]]);
-        data.advance(2);
-        r
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u16, &'static str> {
+        let buff = data.buff_advance_exact(2).ok_or(EOF)?;
+        let r = u16::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(r)
     }
 }
 
@@ -109,21 +129,19 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> u32 {
-        let r = u32::from_le_bytes([data.0[0], data.0[1], data.0[2], data.0[3]]);
-        data.advance(4);
-        r
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u32, &'static str> {
+        let buff = data.buff_advance_exact(4).ok_or(EOF)?;
+        let r = u32::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(r)
     }
 }
 
 impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
-    const SIZE: usize = 1;
+    const SIZE: usize = 0;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> &'a [u8] {
-        let (x, y) = data.0.split_at(1);
-        data.0 = y;
-        x
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<&'a [u8], &'static str> {
+        Ok(&data.0[..])
     }
 }
 
@@ -134,13 +152,15 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default + Sized + Copy, const N: usize>
     const SIZE: usize = V::SIZE * N;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> [V; { N }] {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<[V; { N }], &'static str> {
         let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
         for elem in &mut arr[..N] {
-            assert!(data.len() >= V::SIZE);
-            *elem = MaybeUninit::new(V::decode(data));
+            if data.len() < V::SIZE {
+                return Err(EOF);
+            }
+            *elem = MaybeUninit::new(V::decode(data)?);
         }
-        unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) }
+        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
     }
 }
 
@@ -149,14 +169,16 @@ impl<'a, V: Decode<LittleEndian<'a>>> Decode<LittleEndian<'a>> for Vec<V> {
     //const STATIC: bool = false;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Vec<V> {
-        let size: usize = <u32 as Decode<LittleEndian<'a>>>::decode(data) as usize;
+    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<Vec<V>, &'static str> {
+        let size: usize = <u32 as Decode<LittleEndian<'a>>>::decode(data)? as usize;
         let mut arr = Vec::<V>::with_capacity(size as usize);
         for _ in 0..size {
-            assert!(data.len() >= V::SIZE);
-            arr.push(V::decode(data));
+            if data.len() < V::SIZE {
+                return Err(EOF);
+            }
+            arr.push(V::decode(data)?);
         }
-        arr
+        Ok(arr)
     }
 }
 
@@ -191,39 +213,56 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
     */
 
     #[inline(always)]
-    fn buff_advance<'b>(&'b mut self, len: usize) -> &'b [u8] {
-        self.fill_buffer(len);
-        let buff = &self.buffer[self.cursor.clone()];
+    fn buff_advance<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
+        self.fill_buffer(len).ok()?;
+        let buff = self.buffer.get(self.cursor.clone())?;
         self.cursor.start += len;
-        buff
+        Some(buff)
+    }
+
+    #[inline(always)]
+    fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
+        self.fill_buffer(len).ok()?;
+        let buff = self
+            .buffer
+            .get(self.cursor.start..self.cursor.start + len)?;
+        self.cursor.start += len;
+        Some(buff)
     }
 
     #[inline]
-    pub fn decode<T: Decode<Self>>(&mut self) -> T {
+    pub fn decode<T: Decode<Self>>(&mut self) -> Result<T, &'static str> {
         self.fill_buffer(T::SIZE);
         T::decode(self)
     }
 
     #[inline]
-    pub fn fill_buffer_inner(&mut self, len: usize) {
+    pub fn fill_buffer_inner(&mut self, len: usize) -> Result<(), &'static str> {
         if self.buffer.len() < len + self.cursor.start {
-            assert!(self.buffer.len() >= len);
+            if self.buffer.len() < len {
+                return Err("Buffer is too small");
+            }
             self.buffer.copy_within(self.cursor.clone(), 0);
             self.cursor = 0..self.cursor.len();
         }
         self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
             Ok(n) => n,
-            Err(e) => panic!(e),
+            Err(e) => return Err("Read err"),
         };
+        Ok(())
     }
 }
 
 impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
+    type Error = &'static str;
+    const EOF: Self::Error = EOF;
+
     #[inline(always)]
-    fn fill_buffer(&mut self, len: usize) {
+    fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
         while self.cursor.len() < len {
-            self.fill_buffer_inner(len);
+            self.fill_buffer_inner(len)?;
         }
+        Ok(())
         //assert!(self.cursor.len() >= len);
     }
 
@@ -237,8 +276,9 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> u8 {
-        data.buff_advance(1)[0]
+    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u8, &'static str> {
+        let r = data.buff_advance_exact(1).ok_or(EOF)?.get(0).ok_or(EOF)?;
+        Ok(*r)
     }
 }
 
@@ -246,10 +286,10 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> u16 {
-        let buff = data.buff_advance(2);
-        let r = u16::from_le_bytes([buff[0], buff[1]]);
-        r
+    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u16, &'static str> {
+        let buff = data.buff_advance_exact(2).ok_or(EOF)?;
+        let r = u16::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(r)
     }
 }
 
@@ -257,10 +297,10 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> u32 {
-        let buff = data.buff_advance(4);
-        let r = u32::from_le_bytes([buff[0], buff[1], buff[2], buff[3]]);
-        r
+    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u32, &'static str> {
+        let buff = data.buff_advance_exact(4).ok_or(EOF)?;
+        let r = u32::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(r)
     }
 }
 
@@ -275,12 +315,12 @@ impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
     const STATIC: bool = V::SIZE * N <= 1024;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> [V; { N }] {
+    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<[V; { N }], &'static str> {
         let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
         for elem in &mut arr[..] {
-            *elem = MaybeUninit::new(V::decode(data));
+            *elem = MaybeUninit::new(V::decode(data)?);
         }
-        unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) }
+        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
     }
 }
 

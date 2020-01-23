@@ -37,7 +37,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
             if (!<#ty as Decode<Dec>>::STATIC) {
                 assert!(decoder.len() >= <#ty as Decode<Dec>>::SIZE);
             }
-            let #name = <#ty as Decode<Dec>>::decode(decoder);
+            let #name = <#ty as Decode<Dec>>::decode(decoder)?;
         }
     });
     let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
@@ -58,18 +58,18 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
              )+*;
 
             #[inline(always)]
-            fn decode(decoder: &mut Dec) -> #name #ty_generics #where_clause {
+            fn decode(decoder: &mut Dec) -> Result<Self, Dec::Error>  {
                 //decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
                 #(
                     #decoder_decode_impl
                 )*
 
-                #name {
+                Ok(#name {
                     #(
                         #decoder_decode_return_impl,
                     )*
-                }
+                })
             }
         }
     };
