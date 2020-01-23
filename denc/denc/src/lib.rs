@@ -4,6 +4,7 @@
 #![feature(test)]
 #![feature(specialization)]
 #![feature(const_if_match)]
+#![feature(slice_patterns)]
 
 use smallvec::{smallvec, SmallVec};
 
@@ -108,12 +109,13 @@ impl<'a> Decode<LittleEndian<'a>> for u8 {
 
     #[inline(always)]
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u8, &'static str> {
-        if let Some(r) = data.buff_advance_exact(1) {
-            if let Some(&r) = r.get(0) {
-                return Ok(r);
+        match data.0 {
+            &[x, ref inner @ ..] => {
+                data.0 = inner;
+                Ok(x)
             }
+            _ => Err(EOF),
         }
-        Err(EOF)
     }
 }
 
@@ -122,12 +124,13 @@ impl<'a> Decode<LittleEndian<'a>> for u16 {
 
     #[inline(always)]
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u16, &'static str> {
-        if let Some(buff) = data.buff_advance_exact(2) {
-            if let Ok(arr) = buff.try_into() {
-                return Ok(u16::from_le_bytes(arr));
+        match data.0 {
+            &[x1, x2, ref inner @ ..] => {
+                data.0 = inner;
+                Ok(u16::from_le_bytes([x1, x2]))
             }
+            _ => Err(EOF),
         }
-        Err(EOF)
     }
 }
 
@@ -136,12 +139,13 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
 
     #[inline(always)]
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u32, &'static str> {
-        if let Some(buff) = data.buff_advance_exact(4) {
-            if let Ok(arr) = buff.try_into() {
-                return Ok(u32::from_le_bytes(arr));
+        match data.0 {
+            &[x1, x2, x3, x4, ref inner @ ..] => {
+                data.0 = inner;
+                Ok(u32::from_le_bytes([x1, x2, x3, x4]))
             }
+            _ => Err(EOF),
         }
-        Err(EOF)
     }
 }
 
@@ -181,12 +185,13 @@ impl<'a, V: Decode<LittleEndian<'a>>> Decode<LittleEndian<'a>> for Vec<V> {
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<Vec<V>, &'static str> {
         let size: usize = <u32 as Decode<LittleEndian<'a>>>::decode(data)? as usize;
         let mut arr = Vec::<V>::with_capacity(size as usize);
+        if data.len() < V::SIZE * size {
+            return Err(EOF);
+        }
         for _ in 0..size {
-            if data.len() < V::SIZE {
-                return Err(EOF);
-            }
             arr.push(V::decode(data)?);
         }
+        //<&[u8;4]>
         Ok(arr)
     }
 }
