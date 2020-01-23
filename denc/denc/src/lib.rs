@@ -70,7 +70,7 @@ impl<'a> LittleEndian<'a> {
         Some(())
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn decode<T: Decode<Self>>(&mut self) -> Result<T, &'static str> {
         self.fill_buffer(T::SIZE)?;
         T::decode(self)
