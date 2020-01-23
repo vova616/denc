@@ -27,18 +27,18 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let concatenated = format!("_dec_{}", name);
         let size_name = syn::Ident::new(&concatenated, name.span());
         let inner_types = types.iter().skip(i);
-        let prev_type = types.get(i - 1);
-
-        if let Some(prev_type) = prev_type {
+       
+        if i == 0 {
             quote! {
-                if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
+                if decoder.len() < <#ty as Decode<Dec>>::SIZE {
                     return Err(Dec::EOF);
                 }
                 let #name = <#ty as Decode<Dec>>::decode(decoder)?;
-            }   
+            }
         } else {
+            let prev_type = types.get(i - 1).unwrap();
             quote! {
-                if decoder.len() < <#ty as Decode<Dec>>::SIZE {
+                if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
                     return Err(Dec::EOF);
                 }
                 let #name = <#ty as Decode<Dec>>::decode(decoder)?;
