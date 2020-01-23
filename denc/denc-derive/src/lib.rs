@@ -34,9 +34,14 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
             //if decoder.len() < <#ty as Decode<Dec>>::SIZE {
             //    unreachable!();
             //}
-            if (!<#ty as Decode<Dec>>::STATIC) {
-                assert!(decoder.len() >= <#ty as Decode<Dec>>::SIZE);
+
+            if !<#ty as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
+               return Err(Dec::EOF);
             }
+
+            // if (!<#ty as Decode<Dec>>::STATIC) {
+            //     assert!(decoder.len() >= <#ty as Decode<Dec>>::SIZE);
+            // }
             let #name = <#ty as Decode<Dec>>::decode(decoder)?;
         }
     });

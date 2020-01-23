@@ -290,7 +290,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructLarge = bytes.decode().unwrap();
+                let pong: TestStructLarge = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
@@ -307,7 +307,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructArray = bytes.decode().unwrap();
+                let pong: TestStructArray = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
@@ -325,7 +325,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructVec = bytes.decode().unwrap();
+                let pong: TestStructVec = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
@@ -344,7 +344,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..]);
-                let mut pong: TestStructSmall = bytes.decode().unwrap();
+                let pong: TestStructSmall = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
@@ -363,7 +363,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
-                let mut pong: TestStructLarge = bytes.decode().unwrap();
+                let pong: TestStructLarge = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
@@ -382,7 +382,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&bytes);
                 let mut bytes = LittleEndianReader::new(&bytes[..], &mut buffer[..1024]);
-                let mut pong: TestStructArray = bytes.decode().unwrap();
+                let pong: TestStructArray = bytes.decode().unwrap();
                 test::black_box(pong);
             });
         });
