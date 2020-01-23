@@ -10,6 +10,7 @@ edition = "2018"
 [profile.release]
 lto = true
 codegen-units = 1
+debug = true
 
 [profile.bench]
 lto = true

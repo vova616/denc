@@ -4,7 +4,6 @@
 #![feature(test)]
 #![feature(specialization)]
 #![feature(const_if_match)]
-#![feature(slice_patterns)]
 
 use smallvec::{smallvec, SmallVec};
 

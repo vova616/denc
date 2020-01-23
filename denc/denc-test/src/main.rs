@@ -6,6 +6,14 @@ pub use denc_derive::*;
 
 use denc::*;
 
+extern crate test;
+use test::Bencher;
+
+use rand::rngs::SmallRng;
+use rand::FromEntropy;
+use rand::Rng;
+use rand::SeedableRng;
+
 #[derive(MapperDec)]
 pub struct TestStruct {
     pub a: u16,
@@ -152,16 +160,27 @@ pub struct TestStructLarge {
     pub a56: u16,
 }
 
+fn main() {
+    let mut small_rng = SmallRng::from_entropy();
+    (0..5).for_each(|_| {
+        let mut bytes = vec![0u8; 100];
+        bytes[0] = 10;
+        for b in bytes.iter_mut().skip(8) {
+            *b = small_rng.gen();
+        }
+        (0..10000000).for_each(|_| {
+            test::black_box(&bytes);
+            let mut bytes = LittleEndian(&bytes[..]);
+            let pong: TestStructVec = bytes.decode().unwrap();
+            test::black_box(pong);
+        });
+    });
+    println!("done");
+}
+
 #[cfg(test)]
 mod tests {
-    extern crate test;
-    use test::Bencher;
-
     use super::*;
-    use rand::rngs::SmallRng;
-    use rand::FromEntropy;
-    use rand::Rng;
-    use rand::SeedableRng;
 
     #[test]
     fn test() {}
