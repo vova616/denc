@@ -264,8 +264,7 @@ mod tests {
         let a: TestStructTinyRef = Decode::decode(&mut bytes).unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
-        assert_eq!(a.c, &[1u8]);
-        assert_eq!(a.e, &[3u8]);
+        assert_eq!(a.c, &[1u8, 3u8]);
     }
 
     #[test]
