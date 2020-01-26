@@ -173,13 +173,16 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
 
     #[inline(always)]
     fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u32, &'static str> {
-        match data.0 {
-            &[x1, x2, x3, x4, ref inner @ ..] => {
-                data.0 = inner;
-                Ok(u32::from_le_bytes([x1, x2, x3, x4]))
-            }
-            _ => Err(EOF),
-        }
+        //this is slower for some reason????
+        // match data.0 {
+        //     &[x1, x2, x3, x4, ref inner @ ..] => {
+        //         data.0 = inner;
+        //         Ok(u32::from_le_bytes([x1, x2, x3, x4]))
+        //     }
+        //     _ => Err(EOF),
+        // }
+        let slice = data.buff_advance_exact(4).ok_or(EOF)?;
+        Ok(u32::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
     }
 }
 
