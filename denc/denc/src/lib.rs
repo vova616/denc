@@ -77,11 +77,46 @@ impl<'a> LittleEndian<'a> {
     }
 
     #[inline(always)]
+    fn buff_advance_exact_const<'b, const N: usize>(&'b mut self) -> Option<&'b [u8; N]> {
+        let (next, new) = split_at_const::<N>(self.0)?;
+        self.0 = new;
+        return Some(next);
+    }
+
+    #[inline(always)]
     fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
+        if self.0.len() < len {
+            return None;
+        }
         let r = self.0.get(0..len)?;
         self.0 = self.0.get(len..)?;
-        Some(r)
+        return Some(r);
     }
+}
+
+#[inline(always)]
+fn split_at_const<const N: usize>(slice: &[u8]) -> Option<(&[u8; N], &[u8])> {
+    // if slice.len() < N {
+    //     return None;
+    // }
+    let r = slice.get(0..N)?;
+    let r2 = slice.get(N..)?;
+    let ptr = r.as_ptr();
+    //transmute *u8 to *[u8; N] this should be fine I think?
+    let ptr: *const [u8; N] = unsafe { mem::transmute::<_, _>(ptr) };
+    //dereference ptr
+    let ptr = unsafe { &*ptr };
+    Some((&ptr, r2))
+}
+
+#[inline(always)]
+fn split_at(slice: &[u8], at: usize) -> Option<(&[u8], &[u8])> {
+    // if slice.len() < at {
+    //     return None;
+    // }
+    let r = slice.get(0..at)?;
+    let r2 = slice.get(at..)?;
+    Some((r, r2))
 }
 
 impl<'a> Decoder for LittleEndian<'a> {
