@@ -33,7 +33,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 if decoder.len() < <#ty as Decode<Dec>>::SIZE {
                     return Err(Dec::EOF);
                 }
-                let #name = <#ty as Decode<Dec>>::decode(decoder)?;
+                <#ty as Decode<Dec>>::decode(decoder, &mut value.#name)?;
             }
         } else {
             let prev_type = types.get(i - 1).unwrap();
@@ -41,7 +41,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
                     return Err(Dec::EOF);
                 }
-                let #name = <#ty as Decode<Dec>>::decode(decoder)?;
+                <#ty as Decode<Dec>>::decode(decoder, &mut value.#name)?;
             }
         }
     });
@@ -63,18 +63,14 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
              )+*;
 
             #[inline(always)]
-            fn decode(decoder: &mut Dec) -> Result<Self, Dec::Error>  {
+            fn decode(decoder: &mut Dec, value: &mut Self) -> Result<(), Dec::Error>  {
                 //decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
                 #(
                     #decoder_decode_impl
                 )*
 
-                Ok(#name {
-                    #(
-                        #decoder_decode_return_impl,
-                    )*
-                })
+                Ok(())
             }
         }
     };

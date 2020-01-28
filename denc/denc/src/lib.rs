@@ -39,7 +39,7 @@ pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool;
 
-    fn decode<'a>(data: &'a mut T) -> Result<Self, T::Error>;
+    fn decode<'a>(data: &'a mut T, value: &mut Self) -> Result<(), T::Error>;
 }
 
 pub trait Decoder {
@@ -54,7 +54,7 @@ impl<V, Dec: Decoder> Decode<Dec> for V {
     default const SIZE: usize = 0;
     default const STATIC: bool = false;
 
-    default fn decode<'a>(data: &'a mut Dec) -> Result<V, Dec::Error> {
+    default fn decode<'a>(data: &'a mut Dec, value: &mut V) -> Result<(), Dec::Error> {
         unimplemented!()
     }
 }
@@ -71,9 +71,11 @@ impl<'a> LittleEndian<'a> {
     }
 
     #[inline]
-    pub fn decode<T: Decode<Self>>(&mut self) -> Result<T, &'static str> {
+    pub fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, &'static str> {
         self.fill_buffer(T::SIZE)?;
-        T::decode(self)
+        let mut r = Default::default();
+        T::decode(self, &mut r)?;
+        Ok(r)
     }
 
     #[inline(always)]
@@ -142,11 +144,12 @@ impl<'a> Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u8, &'static str> {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>, value: &mut u8) -> Result<(), &'static str> {
         match data.0 {
             &[x, ref inner @ ..] => {
                 data.0 = inner;
-                Ok(x)
+                *value = x;
+                Ok(())
             }
             _ => Err(EOF),
         }
@@ -157,11 +160,12 @@ impl<'a> Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u16, &'static str> {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>, value: &mut u16) -> Result<(), &'static str> {
         match data.0 {
             &[x1, x2, ref inner @ ..] => {
                 data.0 = inner;
-                Ok(u16::from_le_bytes([x1, x2]))
+                *value = u16::from_le_bytes([x1, x2]);
+                Ok(())
             }
             _ => Err(EOF),
         }
@@ -172,7 +176,7 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<u32, &'static str> {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>, value: &mut u32) -> Result<(), &'static str> {
         //this is slower for some reason????
         // match data.0 {
         //     &[x1, x2, x3, x4, ref inner @ ..] => {
@@ -182,7 +186,8 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
         //     _ => Err(EOF),
         // }
         let slice = data.buff_advance_exact(4).ok_or(EOF)?;
-        Ok(u32::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
+        *value = u32::from_le_bytes(slice.try_into().ok().ok_or(EOF)?);
+        Ok(())
     }
 }
 
@@ -190,8 +195,12 @@ impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 0;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<&'a [u8], &'static str> {
-        Ok(&data.0.get(..).ok_or(EOF)?)
+    fn decode<'b>(
+        data: &'b mut LittleEndian<'a>,
+        value: &mut &'a [u8],
+    ) -> Result<(), &'static str> {
+        *value = &data.0.get(..).ok_or(EOF)?;
+        Ok(())
     }
 }
 
@@ -202,34 +211,40 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default + Sized + Copy, const N: usize>
     const SIZE: usize = V::SIZE * N;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<[V; { N }], &'static str> {
-        let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
-        for elem in &mut arr[..N] {
+    fn decode<'b>(
+        data: &'b mut LittleEndian<'a>,
+        value: &mut [V; { N }],
+    ) -> Result<(), &'static str> {
+        for elem in value.iter_mut() {
             if data.len() < V::SIZE {
                 return Err(EOF);
             }
-            *elem = MaybeUninit::new(V::decode(data)?);
+            V::decode(data, elem)?;
         }
-        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
+        Ok(())
     }
 }
 
-impl<'a, V: Decode<LittleEndian<'a>>> Decode<LittleEndian<'a>> for Vec<V> {
+impl<'a, V: Decode<LittleEndian<'a>> + Default> Decode<LittleEndian<'a>> for Vec<V> {
     const SIZE: usize = <u32 as Decode<LittleEndian<'a>>>::SIZE;
     //const STATIC: bool = false;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> Result<Vec<V>, &'static str> {
-        let size: usize = <u32 as Decode<LittleEndian<'a>>>::decode(data)? as usize;
-        let mut arr = Vec::<V>::with_capacity(size as usize);
-        if data.len() < V::SIZE * size {
+    fn decode<'b>(data: &'b mut LittleEndian<'a>, value: &mut Vec<V>) -> Result<(), &'static str> {
+        let mut size = 0u32;
+        <u32 as Decode<LittleEndian<'a>>>::decode(data, &mut size)?;
+        if data.len() < V::SIZE * size as usize {
             return Err(EOF);
         }
+        value.clear();
+        value.reserve(size as usize);
         for _ in 0..size {
-            arr.push(V::decode(data)?);
+            let mut v = V::default();
+            V::decode(data, &mut v)?;
+            value.push(v);
         }
         //<&[u8;4]>
-        Ok(arr)
+        Ok(())
     }
 }
 
@@ -282,9 +297,11 @@ impl<'a, R: Read> LittleEndianReader<'a, R> {
     }
 
     #[inline]
-    pub fn decode<T: Decode<Self>>(&mut self) -> Result<T, &'static str> {
+    pub fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, &'static str> {
         self.fill_buffer(T::SIZE)?;
-        T::decode(self)
+        let mut t = Default::default();
+        T::decode(self, &mut t)?;
+        Ok(t)
     }
 
     #[inline]
@@ -327,9 +344,12 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u8, &'static str> {
-        let r = data.buff_advance_exact(1).ok_or(EOF)?.get(0).ok_or(EOF)?;
-        Ok(*r)
+    fn decode<'b>(
+        data: &'b mut LittleEndianReader<'a, R>,
+        value: &mut u8,
+    ) -> Result<(), &'static str> {
+        *value = *data.buff_advance_exact(1).ok_or(EOF)?.get(0).ok_or(EOF)?;
+        Ok(())
     }
 }
 
@@ -337,10 +357,13 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u16, &'static str> {
+    fn decode<'b>(
+        data: &'b mut LittleEndianReader<'a, R>,
+        value: &mut u16,
+    ) -> Result<(), &'static str> {
         let buff = data.buff_advance_exact(2).ok_or(EOF)?;
-        let r = u16::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
-        Ok(r)
+        *value = u16::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(())
     }
 }
 
@@ -348,10 +371,13 @@ impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<u32, &'static str> {
+    fn decode<'b>(
+        data: &'b mut LittleEndianReader<'a, R>,
+        value: &mut u32,
+    ) -> Result<(), &'static str> {
         let buff = data.buff_advance_exact(4).ok_or(EOF)?;
-        let r = u32::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
-        Ok(r)
+        *value = u32::from_le_bytes(buff.try_into().ok().ok_or(EOF)?);
+        Ok(())
     }
 }
 
@@ -366,12 +392,14 @@ impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
     const STATIC: bool = V::SIZE * N <= 1024;
 
     #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndianReader<'a, R>) -> Result<[V; { N }], &'static str> {
-        let mut arr: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
-        for elem in &mut arr[..] {
-            *elem = MaybeUninit::new(V::decode(data)?);
+    fn decode<'b>(
+        data: &'b mut LittleEndianReader<'a, R>,
+        value: &mut [V; { N }],
+    ) -> Result<(), &'static str> {
+        for elem in value.iter_mut() {
+            V::decode(data, elem)?;
         }
-        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
+        Ok(())
     }
 }
 

@@ -14,13 +14,13 @@ use rand::FromEntropy;
 use rand::Rng;
 use rand::SeedableRng;
 
-#[derive(MapperDec)]
+#[derive(Default, MapperDec)]
 pub struct TestStruct {
     pub a: u16,
     pub b: u32,
 }
 
-#[derive(MapperDec)]
+#[derive(Default, MapperDec)]
 pub struct TestStructSmall {
     pub a87: u16,
     pub a32: u32,
@@ -50,7 +50,7 @@ pub struct TestStructSmall {
     pub a93: u32,
 }
 
-#[derive(MapperDec)]
+#[derive(Default, MapperDec)]
 pub struct TestStructArray {
     pub a87: u16,
     pub a32: u32,
@@ -58,12 +58,12 @@ pub struct TestStructArray {
     pub a23: u16,
     pub a42: u8,
     pub a41: u8,
-    pub a53: [u32; 10],
+    pub a53: [u16; 10],
     pub a7: u8,
     pub a47: u8,
 }
 
-#[derive(MapperDec)]
+#[derive(Default, MapperDec)]
 pub struct TestStructVec {
     pub a53: Vec<u32>,
     pub a87: u16,
@@ -76,7 +76,7 @@ pub struct TestStructVec {
     pub a47: u8,
 }
 
-#[derive(MapperDec)]
+#[derive(Default, MapperDec)]
 pub struct TestStructLarge {
     pub a87: u16,
     pub a32: u32,
@@ -193,10 +193,10 @@ mod tests {
     impl<Dec: Decoder> Decode<Dec> for TestStructTiny {
         const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u8 as Decode<Dec>>::SIZE;
 
-        fn decode(decoder: &mut Dec) -> Result<TestStructTiny, Dec::Error> {
-            let a: u16 = <u16 as Decode<Dec>>::decode(decoder)?;
-            let b: u8 = <u8 as Decode<Dec>>::decode(decoder)?;
-            Ok(TestStructTiny { a: a, b: b })
+        fn decode(decoder: &mut Dec, value: &mut TestStructTiny) -> Result<(), Dec::Error> {
+            <u16 as Decode<Dec>>::decode(decoder, &mut value.a)?;
+            <u8 as Decode<Dec>>::decode(decoder, &mut value.b)?;
+            Ok(())
         }
     }
 
@@ -204,80 +204,6 @@ mod tests {
     pub struct TestStructTinyDerive {
         pub a: u16,
         pub b: u8,
-    }
-
-    pub struct TestStructTinyRef<'a> {
-        pub a: u16,
-        pub b: u8,
-        pub c: &'a [u8],
-        pub e: &'a [u8],
-    }
-
-    impl<'a, Dec: Decoder> Decode<Dec> for TestStructTinyRef<'a> {
-        const SIZE: usize = <u16 as Decode<Dec>>::SIZE
-            + <u8 as Decode<Dec>>::SIZE
-            + <&'a [u8] as Decode<Dec>>::SIZE
-            + <&'a [u8] as Decode<Dec>>::SIZE;
-
-        fn decode(decoder: &mut Dec) -> Result<TestStructTinyRef<'a>, Dec::Error> {
-            let mut const_size = <u16 as Decode<Dec>>::SIZE
-                + <u8 as Decode<Dec>>::SIZE
-                + <&'a [u8] as Decode<Dec>>::SIZE
-                + <&'a [u8] as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let a: u16 = <u16 as Decode<Dec>>::decode(decoder)?;
-            const_size -= <u16 as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let b: u8 = <u8 as Decode<Dec>>::decode(decoder)?;
-            const_size -= <u8 as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let c: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder)?;
-            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let e: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder)?;
-            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
-
-            Ok(TestStructTinyRef {
-                a: a,
-                b: b,
-                c: c,
-                e: e,
-            })
-        }
-    }
-
-    #[test]
-    fn test_decode_tiny() {
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: u8 = Decode::decode(&mut bytes).unwrap();
-
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = Decode::decode(&mut bytes).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-
-        let mut bytes = LittleEndian(&[1u8, 0, 2, 1, 3] as &[u8]);
-        let a: TestStructTinyRef = Decode::decode(&mut bytes).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-        assert_eq!(a.c, &[1u8, 3u8]);
-    }
-
-    #[test]
-    fn test_encode_tiny_derive() {
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = Decode::decode(&mut bytes).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTinyDerive = Decode::decode(&mut bytes).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
     }
 
     #[bench]
