@@ -102,8 +102,8 @@ fn split_at_const<const N: usize>(slice: &[u8]) -> Option<(&[u8; N], &[u8])> {
     let r = slice.get(0..N)?;
     let r2 = slice.get(N..)?;
     let ptr = r.as_ptr();
-    //transmute *u8 to *[u8; N] this should be fine I think?
-    let ptr: *const [u8; N] = unsafe { mem::transmute::<_, _>(ptr) };
+    //cast *u8 to *[u8; N] this should be fine I think?
+    let ptr: *const [u8; N] = ptr.cast();
     //dereference ptr
     let ptr = unsafe { &*ptr };
     Some((&ptr, r2))
