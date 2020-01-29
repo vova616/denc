@@ -37,7 +37,6 @@ One Way:
 
 pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
-    const STATIC: bool;
 
     fn decode<'a>(data: &'a mut T) -> Result<Self, T::Error>;
 }
@@ -210,7 +209,8 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default + Sized + Copy, const N: usize>
             }
             *elem = MaybeUninit::new(V::decode(data)?);
         }
-        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
+        let arr: *const [V; { N }] = arr.as_ptr().cast();
+        Ok(unsafe { *arr })
     }
 }
 
@@ -371,7 +371,8 @@ impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
         for elem in &mut arr[..] {
             *elem = MaybeUninit::new(V::decode(data)?);
         }
-        Ok(unsafe { *mem::transmute::<_, &[V; { N }]>(&arr) })
+        let arr: *const [V; { N }] = arr.as_ptr().cast();
+        Ok(unsafe { *arr })
     }
 }
 

@@ -178,77 +178,38 @@ fn main() {
     println!("done");
 }
 
+#[derive(MapperDec)]
+pub struct TestStructTinyDerive {
+    pub a: u16,
+    pub b: u8,
+}
+
+#[derive(MapperDec)]
+pub struct TestStructTinyRef<'a> {
+    pub a: u16,
+    pub b: u8,
+    pub c: &'a [u8],
+    pub e: &'a [u8],
+}
+
+#[derive(MapperDec)]
+pub struct TestStructTinyT<T: Clone> {
+    pub a: u16,
+    pub b: T,
+}
+
+#[derive(MapperDec)]
+pub struct TestStructTiny {
+    pub a: u16,
+    pub b: u8,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test() {}
-
-    pub struct TestStructTiny {
-        pub a: u16,
-        pub b: u8,
-    }
-
-    impl<Dec: Decoder> Decode<Dec> for TestStructTiny {
-        const SIZE: usize = <u16 as Decode<Dec>>::SIZE + <u8 as Decode<Dec>>::SIZE;
-
-        fn decode(decoder: &mut Dec) -> Result<TestStructTiny, Dec::Error> {
-            let a: u16 = <u16 as Decode<Dec>>::decode(decoder)?;
-            let b: u8 = <u8 as Decode<Dec>>::decode(decoder)?;
-            Ok(TestStructTiny { a: a, b: b })
-        }
-    }
-
-    #[derive(MapperDec)]
-    pub struct TestStructTinyDerive {
-        pub a: u16,
-        pub b: u8,
-    }
-
-    pub struct TestStructTinyRef<'a> {
-        pub a: u16,
-        pub b: u8,
-        pub c: &'a [u8],
-        pub e: &'a [u8],
-    }
-
-    impl<'a, Dec: Decoder> Decode<Dec> for TestStructTinyRef<'a> {
-        const SIZE: usize = <u16 as Decode<Dec>>::SIZE
-            + <u8 as Decode<Dec>>::SIZE
-            + <&'a [u8] as Decode<Dec>>::SIZE
-            + <&'a [u8] as Decode<Dec>>::SIZE;
-
-        fn decode(decoder: &mut Dec) -> Result<TestStructTinyRef<'a>, Dec::Error> {
-            let mut const_size = <u16 as Decode<Dec>>::SIZE
-                + <u8 as Decode<Dec>>::SIZE
-                + <&'a [u8] as Decode<Dec>>::SIZE
-                + <&'a [u8] as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let a: u16 = <u16 as Decode<Dec>>::decode(decoder)?;
-            const_size -= <u16 as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let b: u8 = <u8 as Decode<Dec>>::decode(decoder)?;
-            const_size -= <u8 as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let c: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder)?;
-            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
-
-            decoder.fill_buffer(const_size);
-            let e: &'a [u8] = <&'a [u8] as Decode<Dec>>::decode(decoder)?;
-            const_size -= <&'a [u8] as Decode<Dec>>::SIZE;
-
-            Ok(TestStructTinyRef {
-                a: a,
-                b: b,
-                c: c,
-                e: e,
-            })
-        }
-    }
 
     #[test]
     fn test_decode_tiny() {

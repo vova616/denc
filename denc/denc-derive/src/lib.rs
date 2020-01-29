@@ -5,21 +5,30 @@ extern crate proc_macro;
 
 use self::proc_macro::TokenStream;
 use quote::quote;
-use syn;
+use quote::ToTokens;
+use syn::parse_quote;
 
 extern crate proc_macro2;
 use self::proc_macro2::TokenStream as TokenStream2;
+use std::collections::HashSet;
+use syn::{ImplGenerics, Generics};
+use syn::parse::Parse;
 
 #[proc_macro_derive(MapperDec)]
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
-    let types: Vec<syn::Type> = input
+    let mut types: Vec<syn::Type> = input
         .fields
         .iter()
         .enumerate()
         .map(|(i, f)| f.ty.clone())
         .collect();
+    
+    let set: HashSet<syn::Type> = types.iter().map(|t| t.clone()).collect(); // dedup
+    let types_uniq = set.into_iter();
+
+    //let types_uniq = types.so    
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
@@ -54,10 +63,21 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let name = &input.ident;
     let attrs = &input.attrs;
 
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let mut generics_clone = input.generics.clone();
+    generics_clone.params.push(parse_quote!{ Dec: Decoder });
+    let (impl_generics, _, _) = generics_clone.split_for_impl();
 
+    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+
+ 
     let output = quote! {
-        impl<#ty_generics Dec: Decoder> Decode<Dec> for #name #ty_generics #where_clause {
+        impl #impl_generics Decode<Dec> for #name #ty_generics
+            where 
+            #(
+                #types_uniq : Decode<Dec>
+            ),*
+        
+        {
             const SIZE: usize = #(
                 <#types as Decode<Dec>>::SIZE
              )+*;

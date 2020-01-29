@@ -20,7 +20,7 @@ doctest = false
 
 
 [dependencies]
-syn = {version = "^1.0.0", features = ["full"]}
+syn = {version = "^1.0.0", features = ["full", "extra-traits"]}
 quote = "^1.0.0"
 proc-macro2 = "0.4"
 
