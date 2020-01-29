@@ -366,4 +366,60 @@ mod tests {
             });
         });
     }
+
+    #[bench]
+    fn bench_decode_small3(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader2::new(&bytes[..]);
+                let pong: TestStructSmall = bytes.decode().unwrap();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_large3(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 1024];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader2::new(&bytes[..]);
+                let pong: TestStructLarge = bytes.decode().unwrap();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_array3(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 1024];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader2::new(&bytes[..]);
+                let pong: TestStructArray = bytes.decode().unwrap();
+                test::black_box(pong);
+            });
+        });
+    }
 }
