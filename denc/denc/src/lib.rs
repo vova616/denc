@@ -37,8 +37,24 @@ One Way:
 
 pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
+    const STATIC: bool = false;
 
     fn decode<'a>(data: &'a mut T) -> Result<Self, T::Error>;
+}
+
+pub trait Encode<T: Encoder>: Sized {
+    const SIZE: usize;
+
+    fn encode(&self, data: &mut T) -> Option<T::Error>;
+    fn encode_len(&self) -> usize;
+}
+
+pub trait Encoder {
+    type Error;
+    const EOF: Self::Error;
+
+    fn fill_buffer(&mut self, len: usize) -> Result<(), Self::Error>;
+    fn len(&self) -> usize;
 }
 
 pub trait Decoder {
@@ -49,6 +65,7 @@ pub trait Decoder {
     fn len(&self) -> usize;
 }
 
+/*
 impl<V, Dec: Decoder> Decode<Dec> for V {
     default const SIZE: usize = 0;
     default const STATIC: bool = false;
@@ -57,6 +74,20 @@ impl<V, Dec: Decoder> Decode<Dec> for V {
         unimplemented!()
     }
 }
+*/
+/*
+impl<V, Enc: Encoder> Encode<Enc> for V {
+    default const SIZE: usize = 0;
+
+    default fn encode(&self, data: &mut Enc) -> Option<Enc::Error> {
+        unimplemented!()
+    }
+
+    default fn len(&self) -> usize {
+        unimplemented!()
+    }
+}
+*/
 
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
