@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use syn::parse::Parse;
 use syn::{Generics, ImplGenerics};
 
-#[proc_macro_derive(MapperDec)]
+#[proc_macro_derive(Denc)]
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
@@ -100,7 +100,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     TokenStream::from(output)
 }
 
-#[proc_macro_derive(MapperEnc)]
+#[proc_macro_derive(Enc)]
 pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 

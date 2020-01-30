@@ -14,13 +14,13 @@ use rand::FromEntropy;
 use rand::Rng;
 use rand::SeedableRng;
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStruct {
     pub a: u16,
     pub b: u32,
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructSmall {
     pub a87: u16,
     pub a32: u32,
@@ -50,7 +50,7 @@ pub struct TestStructSmall {
     pub a93: u32,
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructArray {
     pub a87: u16,
     pub a32: u32,
@@ -63,7 +63,7 @@ pub struct TestStructArray {
     pub a47: u8,
 }
 
-#[derive(Default, MapperDec, MapperEnc, Eq, PartialEq, Debug)]
+#[derive(Default, Denc, Enc, Eq, PartialEq, Debug)]
 pub struct TestStructVec {
     pub a53: Vec<u32>,
     pub a87: u16,
@@ -76,7 +76,7 @@ pub struct TestStructVec {
     pub a47: u8,
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructLarge {
     pub a87: [TestStructSmall; 10],
 }
@@ -99,13 +99,13 @@ fn main() {
     println!("done");
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructTinyDerive {
     pub a: u16,
     pub b: u8,
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructTinyRef<'a> {
     pub a: u16,
     pub b: u8,
@@ -113,13 +113,13 @@ pub struct TestStructTinyRef<'a> {
     pub e: &'a [u8],
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructTinyT<T: Clone> {
     pub a: u16,
     pub b: T,
 }
 
-#[derive(Default, MapperDec, MapperEnc)]
+#[derive(Default, Denc, Enc)]
 pub struct TestStructTiny {
     pub a: u16,
     pub b: u8,
