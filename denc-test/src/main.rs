@@ -14,13 +14,13 @@ use rand::FromEntropy;
 use rand::Rng;
 use rand::SeedableRng;
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStruct {
     pub a: u16,
     pub b: u32,
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructSmall {
     pub a87: u16,
     pub a32: u32,
@@ -50,7 +50,7 @@ pub struct TestStructSmall {
     pub a93: u32,
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructArray {
     pub a87: u16,
     pub a32: u32,
@@ -63,7 +63,7 @@ pub struct TestStructArray {
     pub a47: u8,
 }
 
-#[derive(MapperDec, MapperEnc, Eq, PartialEq, Debug)]
+#[derive(Default, MapperDec, MapperEnc, Eq, PartialEq, Debug)]
 pub struct TestStructVec {
     pub a53: Vec<u32>,
     pub a87: u16,
@@ -76,7 +76,7 @@ pub struct TestStructVec {
     pub a47: u8,
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructLarge {
     pub a87: u16,
     pub a32: u32,
@@ -178,13 +178,13 @@ fn main() {
     println!("done");
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructTinyDerive {
     pub a: u16,
     pub b: u8,
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructTinyRef<'a> {
     pub a: u16,
     pub b: u8,
@@ -192,13 +192,13 @@ pub struct TestStructTinyRef<'a> {
     pub e: &'a [u8],
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructTinyT<T: Clone> {
     pub a: u16,
     pub b: T,
 }
 
-#[derive(MapperDec, MapperEnc)]
+#[derive(Default, MapperDec, MapperEnc)]
 pub struct TestStructTiny {
     pub a: u16,
     pub b: u8,
@@ -214,15 +214,15 @@ mod tests {
     #[test]
     fn test_decode_tiny() {
         let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: u8 = Decode::decode(&mut bytes).unwrap();
+        let a: u8 = bytes.decode().unwrap();
 
         let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = Decode::decode(&mut bytes).unwrap();
+        let a: TestStructTiny = bytes.decode().unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
         let mut bytes = LittleEndian(&[1u8, 0, 2, 1, 3] as &[u8]);
-        let a: TestStructTinyRef = Decode::decode(&mut bytes).unwrap();
+        let a: TestStructTinyRef = bytes.decode().unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
         assert_eq!(a.c, &[1u8, 3u8]);
@@ -231,12 +231,12 @@ mod tests {
     #[test]
     fn test_encode_tiny_derive() {
         let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = Decode::decode(&mut bytes).unwrap();
+        let a: TestStructTiny = bytes.decode().unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
         let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTinyDerive = Decode::decode(&mut bytes).unwrap();
+        let a: TestStructTinyDerive = bytes.decode().unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
     }
@@ -306,6 +306,26 @@ mod tests {
                 let mut bytes = LittleEndian(&bytes[..]);
                 let pong: TestStructVec = bytes.decode().unwrap();
                 test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_vec_into(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 100];
+            bytes[0] = 10;
+            for b in bytes.iter_mut().skip(8) {
+                *b = small_rng.gen();
+            }
+            let mut pong: TestStructVec = Default::default();
+            pong.a53.reserve_exact(100);
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndian(&bytes[..]);
+                bytes.decode_into(&mut pong).unwrap();
+                test::black_box(&pong);
             });
         });
     }

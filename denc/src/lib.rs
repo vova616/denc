@@ -47,7 +47,7 @@ pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool = false;
 
-    fn decode<'a>(data: &'a mut T) -> Result<Self, T::Error>;
+    fn decode<'a>(&mut self, data: &'a mut T) -> Result<(), T::Error>;
     fn decode_len(&self) -> usize {
         return Self::SIZE;
     }
