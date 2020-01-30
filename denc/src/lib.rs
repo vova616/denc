@@ -19,28 +19,6 @@ mod le_encoder;
 pub use le_decoder::*;
 pub use le_encoder::*;
 
-/**
-One Way:
-    size is a size hint
-    is should not be too big or the reading wont strat
-    before each decoding the size hint ensures that there are enough bytes to
-    read the stream
-
-    to decode can read as many bytes he wants
-
-    Why do we need advance:
-        I'm not sure.
-        maybe for visitors but visitors can implement their own
-
-        Cons: bad impl of advance is bad for visitors.
-
-    Problem with size hint:
-        we cannot get final size.
-        but we dont need final size when decoding so its fine
-
-
-*/
-
 const EOF: &'static str = "EOF";
 
 pub trait Decode<T: Decoder>: Sized {
@@ -66,51 +44,12 @@ pub trait Encode<T: Encoder>: Sized {
 pub trait Encoder {
     type Error;
     const EOF: Self::Error;
-
-    fn fill_buffer(&mut self, len: usize) -> Result<(), Self::Error>;
-    fn len(&self) -> usize;
 }
 
 pub trait Decoder {
     type Error;
     const EOF: Self::Error;
 }
-
-/*
-impl<V, Dec: Decoder> Decode<Dec> for V {
-    default const SIZE: usize = 0;
-    default const STATIC: bool = false;
-
-    default fn decode<'a>(data: &'a mut Dec) -> Result<V, Dec::Error> {
-        unimplemented!()
-    }
-}
-*/
-/*
-impl<V, Enc: Encoder> Encode<Enc> for V {
-    default const SIZE: usize = 0;
-
-    default fn encode(&self, data: &mut Enc) -> Option<Enc::Error> {
-        unimplemented!()
-    }
-
-    default fn len(&self) -> usize {
-        unimplemented!()
-    }
-}
-*/
-
-/*
-impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
-    const SIZE: usize = 1;
-
-    #[inline(always)]
-    fn decode<'b>(data: &'b mut LittleEndian<'a>) -> &'a [u8] {
-        let (x, y) = data.0.split_at(1);
-        data.0 = y;
-        x
-    }
-}*/
 
 #[inline(always)]
 fn split_at_const<const N: usize>(slice: &[u8]) -> Option<(&[u8; N], &[u8])> {

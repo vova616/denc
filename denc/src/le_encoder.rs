@@ -40,11 +40,6 @@ impl<'a> LittleEndianMut<'a> {
         *a = *value;
         return Ok(());
     }
-}
-
-impl<'a> Encoder for LittleEndianMut<'a> {
-    type Error = &'static str;
-    const EOF: Self::Error = EOF;
 
     #[inline(always)]
     fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
@@ -59,6 +54,11 @@ impl<'a> Encoder for LittleEndianMut<'a> {
     fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+impl<'a> Encoder for LittleEndianMut<'a> {
+    type Error = &'static str;
+    const EOF: Self::Error = EOF;
 }
 
 impl<'a> Encode<LittleEndianMut<'a>> for u8 {
