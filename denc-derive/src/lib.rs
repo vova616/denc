@@ -106,70 +106,79 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
 pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
     let mut input: syn::ItemStruct = syn::parse(input).unwrap();
 
-    let decoder_store_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
+    let mut types: Vec<syn::Type> = input
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(i, f)| f.ty.clone())
+        .collect();
+    
+    let set: HashSet<syn::Type> = types.iter().map(|t| t.clone()).collect(); // dedup
+    let types_uniq = set.into_iter();
+
+    //let types_uniq = types.so    
+    let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
+        let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
 
-        match ty {
-            syn::Type::Array(array) => {
-                let ty = &array.elem;
-                let len = &array.len;
-                quote! {
-                 self.#name.iter().fold(0, |sum, x| sum + Encode::size(&x) as usize)
+        let concatenated = format!("_enc_{}", name);
+        let size_name = syn::Ident::new(&concatenated, name.span());
+        let inner_types = types.iter().skip(i);
+       
+        if i == 0 {
+            quote! {
+                if encoder.len() < <#ty as Encode<Enc>>::SIZE {
+                    return Err(Enc::EOF);
                 }
+                <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
             }
-            _ => {
-                quote! {
-                     self.#name.size_enc()
+        } else {
+            let prev_type = types.get(i - 1).unwrap();
+            quote! {
+                if !<#prev_type as Encode<Enc>>::STATIC && encoder.len() < <#ty as Encode<Enc>>::SIZE {
+                    return Err(Enc::EOF);
                 }
+                <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
             }
         }
     });
-    let encoder_encode_impl = input.fields.iter().enumerate().map(|(i, f)| {
+    let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = &f.ident;
-        let ty = &f.ty;
-        match ty {
-            syn::Type::Array(array) => {
-                let ty = &array.elem;
-                let len = &array.len;
-                quote! {
-                    for item in &self.#name {
-                        item.encode(buff);
-                    }
-                }
-            }
-            _ => {
-                quote! {
-                    let a_size = <#ty as Encode<'b, Encdr>>::size(&self.#name);
-                    let (target, encoder) = encoder.split_at_mut(a_size);
-                    let #name = <#ty as Encode<'b, Encdr>>::encode(&self.#name, target);
-                    self.#name.encode(buff);
-                }
-            }
+        quote! {
+           #name
         }
     });
     let name = &input.ident;
     let attrs = &input.attrs;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
+    let mut generics_clone = input.generics.clone();
+    generics_clone.params.push(parse_quote!{ Enc: Encoder });
+    let (impl_generics, _, _) = generics_clone.split_for_impl();
+
+    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+
+ 
     let output = quote! {
-        //impl #impl_generics Encoder for #name #ty_generics #where_clause {
-        impl<'a, Data, Encdr: Encoder<'a, Data = Data>>  Encode<'a, Encdr> for #name #ty_generics #where_clause {
+        impl #impl_generics Encode<Enc> for #name #ty_generics
+            where 
+            #(
+                #types_uniq : Encode<Enc>
+            ),*
+        
+        {
+            const SIZE: usize = #(
+                <#types as Encode<Enc>>::SIZE
+             )+*;
 
-            #[inline]
-             fn encode(&self, buff: &'a mut [Data]) {
-                #(
-                   #encoder_encode_impl
-                )*
-            }
+            #[inline(always)]
+            fn encode(&self, encoder: &mut Enc) -> Result<(), Enc::Error>  {
+                //decoder.fill_buffer(<#name as Decode<Dec>>::SIZE);
 
-            #[inline]
-            fn size_enc(&self) -> usize {
-                let mut size = 0;
                 #(
-                   size += #decoder_store_impl;
+                    #decoder_decode_impl
                 )*
-                size
+
+                Ok(())
             }
         }
     };
