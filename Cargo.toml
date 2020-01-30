@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "denc",
+    "denc-test",
+    "denc-derive"
+]
