@@ -6,17 +6,6 @@ use std::io::prelude::Write;
 pub struct LittleEndianMut<'a>(pub &'a mut [u8]);
 
 impl<'a> LittleEndianMut<'a> {
-    #[inline]
-    pub fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
-        if self.0.len() < T::SIZE {
-            return Err(EOF);
-        }
-        let size = self.0.len();
-        T::encode(value, self)?;
-        let left = self.0.len();
-        Ok(size - left)
-    }
-
     /*
     #[inline(always)]
     fn advance_exact_const<'b, const N: usize>(
@@ -59,6 +48,17 @@ impl<'a> LittleEndianMut<'a> {
 impl<'a> Encoder for LittleEndianMut<'a> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
+
+    #[inline]
+    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
+        if self.0.len() < T::SIZE {
+            return Err(EOF);
+        }
+        let size = self.0.len();
+        T::encode(value, self)?;
+        let left = self.0.len();
+        Ok(size - left)
+    }
 }
 
 impl<'a> Encode<LittleEndianMut<'a>> for u8 {

@@ -78,6 +78,13 @@ impl<'a> LittleEndian<'a> {
 impl<'a> Decoder for LittleEndian<'a> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
+
+    #[inline(always)]
+    fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), &'static str> {
+        self.fill_buffer(T::SIZE)?;
+        T::decode(value, self)?;
+        Ok(())
+    }
 }
 
 impl<'a> Decode<LittleEndian<'a>> for u8 {
@@ -190,19 +197,6 @@ impl<R: Read> LittleEndianReader<R> {
         self.reader
     }
 
-    #[inline]
-    pub fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, &'static str> {
-        let mut value = Default::default();
-        T::decode(&mut value, self)?;
-        Ok(value)
-    }
-
-    #[inline]
-    pub fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), &'static str> {
-        T::decode(value, self)?;
-        Ok(())
-    }
-
     /*
         Next Refactor:
         Remove fill_buffer from each line?
@@ -212,6 +206,12 @@ impl<R: Read> LittleEndianReader<R> {
 impl<R: Read> Decoder for LittleEndianReader<R> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
+
+    #[inline]
+    fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), &'static str> {
+        T::decode(value, self)?;
+        Ok(())
+    }
 }
 
 impl<R: Read> Decode<LittleEndianReader<R>> for u8 {
@@ -247,7 +247,7 @@ impl<R: Read> Decode<LittleEndianReader<R>> for u32 {
     }
 }
 
-impl<R: Read, V: Decode<LittleEndianReader<R>> + Copy, const N: usize> Decode<LittleEndianReader<R>>
+impl<R: Read, V: Decode<LittleEndianReader<R>>, const N: usize> Decode<LittleEndianReader<R>>
     for [V; N]
 {
     const SIZE: usize = if V::SIZE * N > 1024 {

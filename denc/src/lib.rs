@@ -41,14 +41,25 @@ pub trait Encode<T: Encoder>: Sized {
     }
 }
 
-pub trait Encoder {
+pub trait Encoder: Sized {
     type Error;
     const EOF: Self::Error;
+
+    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, Self::Error>;
 }
 
-pub trait Decoder {
+pub trait Decoder: Sized {
     type Error;
     const EOF: Self::Error;
+
+    fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), Self::Error>;
+
+    #[inline]
+    fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, Self::Error> {
+        let mut value = Default::default();
+        self.decode_into(&mut value)?;
+        Ok(value)
+    }
 }
 
 #[inline(always)]

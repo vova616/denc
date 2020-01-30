@@ -45,6 +45,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
                 //<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
                 self.#name.decode(decoder)?;
+                //decoder.decode_into(&mut self.#name)?;
             }
         } else {
             let prev_type = types.get(i - 1).unwrap();
@@ -55,6 +56,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
                 //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
                 //decoder.fill_buffer()<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
                 self.#name.decode(decoder)?;
+                //decoder.decode_into(&mut self.#name)?;
             }
         }
     });
