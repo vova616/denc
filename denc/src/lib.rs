@@ -74,9 +74,6 @@ pub trait Encoder {
 pub trait Decoder {
     type Error;
     const EOF: Self::Error;
-
-    fn fill_buffer(&mut self, len: usize) -> Result<(), Self::Error>;
-    fn len(&self) -> usize;
 }
 
 /*

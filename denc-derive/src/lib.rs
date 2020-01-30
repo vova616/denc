@@ -11,8 +11,8 @@ use syn::parse_quote;
 extern crate proc_macro2;
 use self::proc_macro2::TokenStream as TokenStream2;
 use std::collections::HashSet;
-use syn::{ImplGenerics, Generics};
 use syn::parse::Parse;
+use syn::{Generics, ImplGenerics};
 
 #[proc_macro_derive(MapperDec)]
 pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
@@ -24,11 +24,11 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         .enumerate()
         .map(|(i, f)| f.ty.clone())
         .collect();
-    
+
     let set: HashSet<syn::Type> = types.iter().map(|t| t.clone()).collect(); // dedup
     let types_uniq = set.into_iter();
 
-    //let types_uniq = types.so    
+    //let types_uniq = types.so
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
@@ -36,21 +36,25 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let concatenated = format!("_dec_{}", name);
         let size_name = syn::Ident::new(&concatenated, name.span());
         let inner_types = types.iter().skip(i);
-       
+
         if i == 0 {
             quote! {
-                if decoder.len() < <#ty as Decode<Dec>>::SIZE {
-                    return Err(Dec::EOF);
-                }
-                <#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
+                //if decoder.len() < <#ty as Decode<Dec>>::SIZE {
+               //     return Err(Dec::EOF);
+               //}
+                //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
+                //<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
+                self.#name.decode(decoder)?;
             }
         } else {
             let prev_type = types.get(i - 1).unwrap();
             quote! {
-                if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
-                    return Err(Dec::EOF);
-                }
-                <#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
+                //if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
+                //    return Err(Dec::EOF);
+                //}
+                //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
+                //decoder.fill_buffer()<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
+                self.#name.decode(decoder)?;
             }
         }
     });
@@ -64,19 +68,18 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let attrs = &input.attrs;
 
     let mut generics_clone = input.generics.clone();
-    generics_clone.params.push(parse_quote!{ Dec: Decoder });
+    generics_clone.params.push(parse_quote! { Dec: Decoder });
     let (impl_generics, _, _) = generics_clone.split_for_impl();
 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
- 
     let output = quote! {
         impl #impl_generics Decode<Dec> for #name #ty_generics
-            where 
+            where
             #(
                 #types_uniq : Decode<Dec>
             ),*
-        
+
         {
             const SIZE: usize = #(
                 <#types as Decode<Dec>>::SIZE
@@ -105,11 +108,11 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
         .enumerate()
         .map(|(i, f)| f.ty.clone())
         .collect();
-    
+
     let set: HashSet<syn::Type> = types.iter().map(|t| t.clone()).collect(); // dedup
     let types_uniq = set.into_iter();
 
-    //let types_uniq = types.so    
+    //let types_uniq = types.so
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
@@ -117,20 +120,14 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
         let concatenated = format!("_enc_{}", name);
         let size_name = syn::Ident::new(&concatenated, name.span());
         let inner_types = types.iter().skip(i);
-       
+
         if i == 0 {
             quote! {
-                if encoder.len() < <#ty as Encode<Enc>>::SIZE {
-                    return Err(Enc::EOF);
-                }
                 <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
             }
         } else {
             let prev_type = types.get(i - 1).unwrap();
             quote! {
-                if !<#prev_type as Encode<Enc>>::STATIC && encoder.len() < <#ty as Encode<Enc>>::SIZE {
-                    return Err(Enc::EOF);
-                }
                 <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
             }
         }
@@ -145,19 +142,18 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
     let attrs = &input.attrs;
 
     let mut generics_clone = input.generics.clone();
-    generics_clone.params.push(parse_quote!{ Enc: Encoder });
+    generics_clone.params.push(parse_quote! { Enc: Encoder });
     let (impl_generics, _, _) = generics_clone.split_for_impl();
 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
- 
     let output = quote! {
         impl #impl_generics Encode<Enc> for #name #ty_generics
-            where 
+            where
             #(
                 #types_uniq : Encode<Enc>
             ),*
-        
+
         {
             const SIZE: usize = #(
                 <#types as Encode<Enc>>::SIZE

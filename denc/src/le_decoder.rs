@@ -59,11 +59,6 @@ impl<'a> LittleEndian<'a> {
         self.0 = b;
         return Ok(a);
     }
-}
-
-impl<'a> Decoder for LittleEndian<'a> {
-    type Error = &'static str;
-    const EOF: Self::Error = EOF;
 
     #[inline(always)]
     fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
@@ -78,6 +73,11 @@ impl<'a> Decoder for LittleEndian<'a> {
     fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+impl<'a> Decoder for LittleEndian<'a> {
+    type Error = &'static str;
+    const EOF: Self::Error = EOF;
 }
 
 impl<'a> Decode<LittleEndian<'a>> for u8 {
@@ -137,7 +137,6 @@ impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     }
 }
 
-use std::mem::{self, MaybeUninit};
 impl<'a, V: Decode<LittleEndian<'a>>, const N: usize> Decode<LittleEndian<'a>> for [V; N] {
     const SIZE: usize = V::SIZE * N;
 
@@ -178,127 +177,78 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default> Decode<LittleEndian<'a>> for Vec
 
 use std::ops::Range;
 
-pub struct LittleEndianReader<'a, R: Read> {
+pub struct LittleEndianReader<R: Read> {
     pub reader: R,
-    pub buffer: &'a mut [u8],
-    pub cursor: Range<usize>,
 }
 
-impl<'a, R: Read> LittleEndianReader<'a, R> {
-    pub fn new(reader: R, buffer: &'a mut [u8]) -> Self {
-        LittleEndianReader {
-            reader,
-            buffer,
-            cursor: 0..0,
-        }
+impl<R: Read> LittleEndianReader<R> {
+    pub fn new(reader: R) -> Self {
+        LittleEndianReader { reader }
     }
 
-    fn inner(self) -> R {
+    pub fn inner(self) -> R {
         self.reader
     }
 
-    fn buff<'b>(&'b self) -> &'b [u8] {
-        &self.buffer[self.cursor.clone()]
+    #[inline]
+    pub fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, &'static str> {
+        let mut value = Default::default();
+        T::decode(&mut value, self)?;
+        Ok(value)
+    }
+
+    #[inline]
+    pub fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), &'static str> {
+        T::decode(value, self)?;
+        Ok(())
     }
 
     /*
         Next Refactor:
         Remove fill_buffer from each line?
     */
-
-    #[inline(always)]
-    fn buff_advance<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
-        self.fill_buffer(len).ok()?;
-        let buff = self.buffer.get(self.cursor.clone())?;
-        self.cursor.start += len;
-        Some(buff)
-    }
-
-    #[inline(always)]
-    fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
-        self.fill_buffer(len).ok()?;
-        let buff = self
-            .buffer
-            .get(self.cursor.start..self.cursor.start + len)?;
-        self.cursor.start += len;
-        Some(buff)
-    }
-
-    #[inline]
-    pub fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, &'static str> {
-        let mut value = Default::default();
-        self.fill_buffer(T::SIZE)?;
-        T::decode(&mut value, self)?;
-        Ok(value)
-    }
-
-    #[inline]
-    pub fn fill_buffer_inner(&mut self, len: usize) -> Result<(), &'static str> {
-        if self.buffer.len() < len + self.cursor.start {
-            if self.buffer.len() < len {
-                return Err("Buffer is too small");
-            }
-            self.buffer.copy_within(self.cursor.clone(), 0);
-            self.cursor = 0..self.cursor.len();
-        }
-        self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-            Ok(n) => n,
-            Err(e) => return Err("Read err"),
-        };
-        Ok(())
-    }
 }
 
-impl<'a, R: Read> Decoder for LittleEndianReader<'a, R> {
+impl<R: Read> Decoder for LittleEndianReader<R> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
-
-    #[inline(always)]
-    fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
-        while self.cursor.len() < len {
-            self.fill_buffer_inner(len)?;
-        }
-        Ok(())
-        //assert!(self.cursor.len() >= len);
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.cursor.len()
-    }
 }
 
-impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u8 {
+impl<R: Read> Decode<LittleEndianReader<R>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<'a, R>) -> Result<(), &'static str> {
-        Ok(*self = *data.buff_advance_exact(1).ok_or(EOF)?.get(0).ok_or(EOF)?)
+    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<R>) -> Result<(), &'static str> {
+        let mut bytes = [0u8; 1];
+        data.reader.read_exact(&mut bytes[..]).map_err(|e| EOF)?;
+        Ok(*self = bytes[0])
     }
 }
 
-impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u16 {
+impl<R: Read> Decode<LittleEndianReader<R>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<'a, R>) -> Result<(), &'static str> {
-        let buff = data.buff_advance_exact(2).ok_or(EOF)?;
-        Ok(*self = u16::from_le_bytes(buff.try_into().ok().ok_or(EOF)?))
+    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<R>) -> Result<(), &'static str> {
+        let mut bytes = [0u8; 2];
+        data.reader.read_exact(&mut bytes[..]).map_err(|e| EOF)?;
+        Ok(*self = u16::from_le_bytes(bytes))
     }
 }
 
-impl<'a, R: Read> Decode<LittleEndianReader<'a, R>> for u32 {
+impl<R: Read> Decode<LittleEndianReader<R>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
-    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<'a, R>) -> Result<(), &'static str> {
-        let buff = data.buff_advance_exact(4).ok_or(EOF)?;
-        Ok(*self = u32::from_le_bytes(buff.try_into().ok().ok_or(EOF)?))
+    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<R>) -> Result<(), &'static str> {
+        let mut bytes = [0u8; 4];
+        data.reader.read_exact(&mut bytes[..]).map_err(|e| EOF)?;
+        Ok(*self = u32::from_le_bytes(bytes))
     }
 }
 
-impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
-    Decode<LittleEndianReader<'a, R>> for [V; N]
+impl<R: Read, V: Decode<LittleEndianReader<R>> + Copy, const N: usize> Decode<LittleEndianReader<R>>
+    for [V; N]
 {
     const SIZE: usize = if V::SIZE * N > 1024 {
         V::SIZE
@@ -308,7 +258,7 @@ impl<'a, R: Read, V: Decode<LittleEndianReader<'a, R>> + Copy, const N: usize>
     const STATIC: bool = V::SIZE * N <= 1024;
 
     #[inline(always)]
-    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<'a, R>) -> Result<(), &'static str> {
+    fn decode<'b>(&mut self, data: &'b mut LittleEndianReader<R>) -> Result<(), &'static str> {
         for elem in self.iter_mut() {
             elem.decode(data)?;
         }
