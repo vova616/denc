@@ -113,3 +113,92 @@ fn slice_as_const<const N: usize>(slice: &mut [u8]) -> Option<&mut [u8; N]> {
     let ptr = unsafe { &mut *ptr };
     Some(ptr)
 }
+
+pub struct BufferedIO<T: Read, V: Sized, const N: usize> {
+    reader: T,
+    buffer: [V; N],
+    cursor: Range<usize>,
+    len: usize,
+    eof: bool,
+}
+
+use core::ops::Range;
+use std::mem::{self, MaybeUninit};
+
+impl<T: Read, V: Sized + Default + Copy, const N: usize> BufferedIO<T, V, N> {
+    pub fn new(reader: T) -> Self {
+        let mut buffer: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
+        for elem in buffer.iter_mut() {
+            *elem = MaybeUninit::new(Default::default());
+        }
+        let ptr = buffer.as_mut_ptr();
+        let ptr: *mut [V; { N }] = ptr.cast();
+        Self {
+            reader,
+            buffer: unsafe { *ptr },
+            cursor: 0..0,
+            len: 0,
+            eof: false,
+        }
+    }
+}
+
+/*
+pub fn fill_buffer_inner(&mut self, len: usize) -> Result<(), &'static str> {
+    if self.buffer.len() < len + self.cursor.start {
+        if self.buffer.len() < len {
+            return Err("Buffer is too small");
+        }
+        self.buffer.copy_within(self.cursor.clone(), 0);
+        self.cursor = 0..self.cursor.len();
+    }
+    self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
+        Ok(n) => n,
+        Err(e) => return Err("Read err"),
+    };
+}
+
+fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
+    while self.cursor.len() < len {
+        self.fill_buffer_inner(len)?;
+    }
+    Ok(())
+    //assert!(self.cursor.len() >= len);
+}
+*/
+
+impl<T: Read, const N: usize> Read for BufferedIO<T, u8, N> {
+    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+        let buff_len = buf.len();
+        if buff_len > self.len {
+            let mut len = self.len;
+            if len > 0 {
+                buf[..len].copy_from_slice(&self.buffer[self.cursor.clone()]);
+                self.len = 0;
+                self.cursor = 0..0;
+
+                buf = &mut buf[len..];
+            }
+            if !self.eof {
+                let read_len = self.reader.read(&mut self.buffer[..])?;
+                if read_len > 0 {
+                    let min = buf.len().min(read_len);
+                    buf[..min].copy_from_slice(&self.buffer[0..min]);
+                    len += min;
+
+                    self.len = read_len - min;
+                    self.cursor = min..read_len;
+                } else {
+                    self.eof = true;
+                }
+            }
+            Ok(len)
+        } else {
+            buf.copy_from_slice(&self.buffer[self.cursor.clone()][..buff_len]);
+            self.len -= buff_len;
+            self.cursor.start += buff_len;
+
+            Ok(buff_len)
+        }
+    }
+}
