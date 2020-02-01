@@ -22,6 +22,18 @@ impl<'a> LittleEndian<'a> {
     }
 
     #[inline]
+    pub fn from_slice<T: Decode<Self> + Default>(slice: &'a [u8]) -> Result<T, &'static str> {
+        LittleEndian(slice).decode()
+    }
+
+    #[inline]
+    pub fn from_reader<R: Read, T: Decode<LittleEndianReader<R>> + Default>(
+        reader: R,
+    ) -> Result<T, &'static str> {
+        LittleEndianReader { reader }.decode()
+    }
+
+    #[inline]
     pub fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), &'static str> {
         self.fill_buffer(T::SIZE)?;
         T::decode(value, self)?;

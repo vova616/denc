@@ -135,16 +135,12 @@ mod tests {
 
     #[test]
     fn test_decode_tiny() {
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: u8 = bytes.decode().unwrap();
-
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = bytes.decode().unwrap();
+        let a: u8 = LittleEndian::from_slice(&[1u8, 0, 2]).unwrap();
+        let a: TestStructTiny = LittleEndian::from_reader(&[1u8, 0, 2] as &[u8]).unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
-        let mut bytes = LittleEndian(&[1u8, 0, 2, 1, 3] as &[u8]);
-        let a: TestStructTinyRef = bytes.decode().unwrap();
+        let a: TestStructTinyRef = LittleEndian::from_slice(&[1u8, 0, 2, 1, 3]).unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
         assert_eq!(a.c, &[1u8, 3u8]);
@@ -152,13 +148,15 @@ mod tests {
 
     #[test]
     fn test_encode_tiny_derive() {
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTiny = bytes.decode().unwrap();
+        let a: TestStructTiny = LittleEndian::from_slice(&[1u8, 0, 2]).unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
 
-        let mut bytes = LittleEndian(&[1u8, 0, 2] as &[u8]);
-        let a: TestStructTinyDerive = bytes.decode().unwrap();
+        let a: TestStructTinyDerive = LittleEndian::from_reader(&[1u8, 0, 2] as &[u8]).unwrap();
+        assert_eq!(a.a, 1);
+        assert_eq!(a.b, 2);
+
+        let a: TestStructTinyDerive = LittleEndian::from_slice(&[1u8, 0, 2] as &[u8]).unwrap();
         assert_eq!(a.a, 1);
         assert_eq!(a.b, 2);
     }
