@@ -70,21 +70,23 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let attrs = &input.attrs;
 
     let mut generics_clone = input.generics.clone();
-    generics_clone.params.push(parse_quote! { Dec: Decoder });
+    generics_clone
+        .params
+        .push(parse_quote! { Dec: denc::Decoder });
     let (impl_generics, _, _) = generics_clone.split_for_impl();
 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let output = quote! {
-        impl #impl_generics Decode<Dec> for #name #ty_generics
+        impl #impl_generics denc::Decode<Dec> for #name #ty_generics
             where
             #(
-                #types_uniq : Decode<Dec>
+                #types_uniq : denc::Decode<Dec>
             ),*
 
         {
             const SIZE: usize = #(
-                <#types as Decode<Dec>>::SIZE
+                <#types as denc::Decode<Dec>>::SIZE
              )+*;
 
             #[inline(always)]
@@ -125,12 +127,12 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
 
         if i == 0 {
             quote! {
-                <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
+                <#ty as denc::Encode<Enc>>::encode(&self.#name, encoder)?;
             }
         } else {
             let prev_type = types.get(i - 1).unwrap();
             quote! {
-                <#ty as Encode<Enc>>::encode(&self.#name, encoder)?;
+                <#ty as denc::Encode<Enc>>::encode(&self.#name, encoder)?;
             }
         }
     });
@@ -144,21 +146,23 @@ pub fn derive_mapper_enc(input: TokenStream) -> TokenStream {
     let attrs = &input.attrs;
 
     let mut generics_clone = input.generics.clone();
-    generics_clone.params.push(parse_quote! { Enc: Encoder });
+    generics_clone
+        .params
+        .push(parse_quote! { Enc: denc::Encoder });
     let (impl_generics, _, _) = generics_clone.split_for_impl();
 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let output = quote! {
-        impl #impl_generics Encode<Enc> for #name #ty_generics
+        impl #impl_generics denc::Encode<Enc> for #name #ty_generics
             where
             #(
-                #types_uniq : Encode<Enc>
+                #types_uniq : denc::Encode<Enc>
             ),*
 
         {
             const SIZE: usize = #(
-                <#types as Encode<Enc>>::SIZE
+                <#types as denc::Encode<Enc>>::SIZE
              )+*;
 
             #[inline(always)]

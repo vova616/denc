@@ -128,6 +128,7 @@ pub struct TestStructTiny {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::BufReader;
 
     #[test]
     fn test() {}
@@ -301,7 +302,46 @@ mod tests {
             let mut buffer = [0u8; 1024];
             b.iter(|| {
                 test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(&bytes[..]);
+                let mut bytes: BufferedIO<_, _, 1024> = BufferedIO::new(&bytes[..]);
+                let mut bytes = LittleEndianReader::new(bytes);
+                let pong: TestStructArray = bytes.decode().unwrap();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_array3(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 1024];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader::new(BufReader::new(bytes));
+                let pong: TestStructArray = bytes.decode().unwrap();
+                test::black_box(pong);
+            });
+        });
+    }
+
+    #[bench]
+    fn bench_decode_array4(b: &mut Bencher) {
+        let mut small_rng = SmallRng::from_entropy();
+        (0..5).for_each(|_| {
+            let mut bytes = vec![0u8; 1024];
+            for b in bytes.iter_mut() {
+                *b = small_rng.gen();
+            }
+            let bytes = &bytes[..] as &[u8];
+            let mut buffer = [0u8; 1024];
+            b.iter(|| {
+                test::black_box(&bytes);
+                let mut bytes = LittleEndianReader::new(bytes);
                 let pong: TestStructArray = bytes.decode().unwrap();
                 test::black_box(pong);
             });
@@ -321,7 +361,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&pong);
                 let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode(&pong).unwrap();
+                encoder.encode_into(&pong).unwrap();
                 test::black_box(&bytes[..]);
             });
         });
@@ -340,7 +380,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&pong);
                 let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode(&pong).unwrap();
+                encoder.encode_into(&pong).unwrap();
                 test::black_box(&bytes[..]);
             });
         });
@@ -359,7 +399,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&pong);
                 let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode(&pong).unwrap();
+                encoder.encode_into(&pong).unwrap();
                 test::black_box(&bytes[..]);
             });
         });
@@ -378,7 +418,7 @@ mod tests {
             b.iter(|| {
                 test::black_box(&pong);
                 let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode(&pong).unwrap();
+                encoder.encode_into(&pong).unwrap();
                 test::black_box(&bytes[..]);
             });
         });
@@ -395,7 +435,7 @@ mod tests {
         let pong: TestStructVec = LittleEndian(&bytes[..]).decode().unwrap();
 
         let mut encoder = LittleEndianMut(&mut bytes[..]);
-        encoder.encode(&pong).unwrap();
+        encoder.encode_into(&pong).unwrap();
 
         let pong2: TestStructVec = LittleEndian(&bytes[..]).decode().unwrap();
 

@@ -45,7 +45,7 @@ pub trait Encoder: Sized {
     type Error;
     const EOF: Self::Error;
 
-    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, Self::Error>;
+    fn encode_into<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, Self::Error>;
 }
 
 pub trait Decoder: Sized {
@@ -168,6 +168,7 @@ fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
 */
 
 impl<T: Read, const N: usize> Read for BufferedIO<T, u8, N> {
+    #[inline]
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         let buff_len = buf.len();
         if buff_len > self.len {

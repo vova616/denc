@@ -4,6 +4,8 @@ use std::io::prelude::Read;
 
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
+use std::ops::Range;
+
 impl<'a> LittleEndian<'a> {
     #[inline(always)]
     fn advance(&mut self, len: usize) -> Option<()> {
@@ -181,8 +183,6 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default> Decode<LittleEndian<'a>> for Vec
         Ok(())
     }
 }
-
-use std::ops::Range;
 
 pub struct LittleEndianReader<R: Read> {
     pub reader: R,

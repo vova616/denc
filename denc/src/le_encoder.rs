@@ -21,6 +21,18 @@ impl<'a> LittleEndianMut<'a> {
     }
     */
 
+    #[inline]
+    pub fn encode<T>(value: &T) -> Result<Vec<u8>, &'static str>
+    where
+        for<'b> T: Encode<LittleEndianMut<'b>>,
+    {
+        let size = value.encode_len();
+        let mut vec = vec![0; size];
+        let mut encoder = LittleEndianMut(vec.as_mut_slice());
+        encoder.encode_into(value)?;
+        Ok(vec)
+    }
+
     #[inline(always)]
     fn write_const<'b, const N: usize>(&'b mut self, value: &[u8; N]) -> Result<(), &'static str> {
         let slice = std::mem::take(&mut self.0);
@@ -50,7 +62,7 @@ impl<'a> Encoder for LittleEndianMut<'a> {
     const EOF: Self::Error = EOF;
 
     #[inline]
-    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
+    fn encode_into<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
         if self.0.len() < T::SIZE {
             return Err(EOF);
         }
@@ -124,5 +136,16 @@ impl<'a, V: Encode<LittleEndianMut<'a>>> Encode<LittleEndianMut<'a>> for Vec<V> 
             V::encode(elem, data)?;
         }
         Ok(())
+    }
+
+    #[inline(always)]
+    fn encode_len(&self) -> usize {
+        if V::STATIC {
+            return 4 + V::SIZE * self.len();
+        } else {
+            return 4 + self.iter().fold(0, |acc, e| {
+                acc + <V as Encode<LittleEndianMut<'a>>>::encode_len(e)
+            });
+        }
     }
 }
