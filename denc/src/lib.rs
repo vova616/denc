@@ -4,6 +4,8 @@
 #![feature(test)]
 #![feature(specialization)]
 #![feature(const_if_match)]
+#![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_extra)]
 
 use smallvec::{smallvec, SmallVec};
 
@@ -25,7 +27,15 @@ pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool = false;
 
-    fn decode<'a>(&mut self, data: &'a mut T) -> Result<(), T::Error>;
+    #[inline]
+    fn decode(decoder: &mut T) -> Result<Self, T::Error>;
+
+    #[inline]
+    fn decode_into(decoder: &mut T, value: &mut Self) -> Result<(), T::Error> {
+        *value = Self::decode(decoder)?;
+        Ok(())
+    }
+
     fn decode_len(&self) -> usize {
         return Self::SIZE;
     }
@@ -52,14 +62,14 @@ pub trait Decoder: Sized {
     type Error;
     const EOF: Self::Error;
 
-    fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), Self::Error>;
+    #[inline]
+    fn decode_into<T: Decode<Self>>(&mut self, value: &mut T) -> Result<(), Self::Error> {
+        *value = self.decode()?;
+        return Ok(());
+    }
 
     #[inline]
-    fn decode<T: Decode<Self> + Default>(&mut self) -> Result<T, Self::Error> {
-        let mut value = Default::default();
-        self.decode_into(&mut value)?;
-        Ok(value)
-    }
+    fn decode<T: Decode<Self>>(&mut self) -> Result<T, Self::Error>;
 }
 
 #[inline(always)]
@@ -127,15 +137,9 @@ use std::mem::{self, MaybeUninit};
 
 impl<T: Read, V: Sized + Default + Copy, const N: usize> BufferedIO<T, V, N> {
     pub fn new(reader: T) -> Self {
-        let mut buffer: [MaybeUninit<V>; { N }] = unsafe { MaybeUninit::uninit().assume_init() };
-        for elem in buffer.iter_mut() {
-            *elem = MaybeUninit::new(Default::default());
-        }
-        let ptr = buffer.as_mut_ptr();
-        let ptr: *mut [V; { N }] = ptr.cast();
         Self {
             reader,
-            buffer: unsafe { *ptr },
+            buffer: [V::default(); N],
             cursor: 0..0,
             len: 0,
             eof: false,
@@ -201,5 +205,41 @@ impl<T: Read, const N: usize> Read for BufferedIO<T, u8, N> {
 
             Ok(buff_len)
         }
+    }
+}
+
+trait InitWith<T, const N: usize> {
+    fn init_with<F>(func: F) -> [T; N]
+    where
+        F: FnMut(usize) -> T;
+
+    fn init_with_result<F, E>(func: F) -> Result<[T; N], E>
+    where
+        F: FnMut(usize) -> Result<T, E>;
+}
+
+impl<T, const N: usize> InitWith<T, N> for [T; N] {
+    #[inline(always)]
+    fn init_with<F>(mut func: F) -> [T; N]
+    where
+        F: FnMut(usize) -> T,
+    {
+        let mut arr: [MaybeUninit<T>; N] = MaybeUninit::uninit_array();
+        for (i, a) in arr.iter_mut().enumerate() {
+            a.write(func(i));
+        }
+        unsafe { mem::transmute_copy::<_, [T; N]>(&arr) }
+    }
+
+    #[inline(always)]
+    fn init_with_result<F, E>(mut func: F) -> Result<[T; N], E>
+    where
+        F: FnMut(usize) -> Result<T, E>,
+    {
+        let mut arr: [MaybeUninit<T>; N] = MaybeUninit::uninit_array();
+        for (i, a) in arr.iter_mut().enumerate() {
+            a.write(func(i)?);
+        }
+        Ok(unsafe { mem::transmute_copy::<_, [T; N]>(&arr) })
     }
 }

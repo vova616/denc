@@ -32,38 +32,15 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
     let decoder_decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
-
-        let concatenated = format!("_dec_{}", name);
-        let size_name = syn::Ident::new(&concatenated, name.span());
-        let inner_types = types.iter().skip(i);
-
-        if i == 0 {
-            quote! {
-                //if decoder.len() < <#ty as Decode<Dec>>::SIZE {
-               //     return Err(Dec::EOF);
-               //}
-                //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
-                //<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
-                self.#name.decode(decoder)?;
-                //decoder.decode_into(&mut self.#name)?;
-            }
-        } else {
-            let prev_type = types.get(i - 1).unwrap();
-            quote! {
-                //if !<#prev_type as Decode<Dec>>::STATIC && decoder.len() < <#ty as Decode<Dec>>::SIZE {
-                //    return Err(Dec::EOF);
-                //}
-                //decoder.fill_buffer(<#ty as Decode<Dec>>::SIZE);
-                //decoder.fill_buffer()<#ty as Decode<Dec>>::decode(&mut self.#name, decoder)?;
-                self.#name.decode(decoder)?;
-                //decoder.decode_into(&mut self.#name)?;
-            }
+        quote! {
+            #name: <#ty as Decode<Dec>>::decode(decoder)?,
         }
     });
-    let decoder_decode_return_impl = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = &f.ident;
+    let decoder_decode_impl2 = input.fields.iter().enumerate().map(|(i, f)| {
+        let name = f.ident.as_ref().unwrap();
+        let ty = &f.ty;
         quote! {
-           #name
+            <#ty as Decode<Dec>>::decode_into(decoder, &mut value.#name)?;
         }
     });
     let name = &input.ident;
@@ -90,9 +67,18 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
              )+*;
 
             #[inline(always)]
-            fn decode(&mut self, decoder: &mut Dec) -> Result<(), Dec::Error>  {
+            fn decode<'b>(decoder: &'b mut Dec) -> Result<Self, Dec::Error> {
+                Ok(#name {
+                    #(
+                        #decoder_decode_impl
+                    )*
+                })
+            }
+
+            #[inline(always)]
+            fn decode_into(decoder: &mut Dec, value: &mut Self) -> Result<(), Dec::Error> {
                 #(
-                    #decoder_decode_impl
+                    #decoder_decode_impl2
                 )*
                 Ok(())
             }
