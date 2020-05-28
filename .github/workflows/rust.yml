@@ -19,6 +19,7 @@ jobs:
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
+            profile: minimal
             toolchain: nightly
             override: true
       - name: Run cargo check
