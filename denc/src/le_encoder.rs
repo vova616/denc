@@ -114,7 +114,6 @@ impl<'a, V: Encode<LittleEndianMut<'a>>, const N: usize> Encode<LittleEndianMut<
 
     #[inline(always)]
     fn encode<'b>(&self, data: &'b mut LittleEndianMut<'a>) -> Result<(), &'static str> {
-        data.write_const(&(<[V; N] as Encode<LittleEndianMut<'a>>>::SIZE as u32).to_le_bytes())?;
         for elem in self.iter() {
             if data.0.len() < V::SIZE {
                 return Err(EOF);
