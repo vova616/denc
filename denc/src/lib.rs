@@ -55,9 +55,8 @@ pub trait Encoder: Sized {
     type Error;
     const EOF: Self::Error;
 
-    fn encode_into<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, Self::Error>;
+    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, Self::Error>;
 }
-
 pub trait Decoder: Sized {
     type Error;
     const EOF: Self::Error;

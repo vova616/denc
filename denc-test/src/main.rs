@@ -82,7 +82,7 @@ pub struct TestStructLarge {
 }
 
 fn main() {
-    let mut small_rng = SmallRng::from_entropy();
+    let mut small_rng = SmallRng::from_seed([15u8; 16]);
     (0..5).for_each(|_| {
         let mut bytes = vec![0u8; 100];
         bytes[0] = 10;
@@ -130,315 +130,138 @@ mod tests {
     use super::*;
     use std::io::BufReader;
 
-    #[test]
-    fn test() {}
+    macro_rules! test_struct {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[test]
+            fn $func() {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                let mut decoder = LittleEndian(&bytes[..]);
+                let pong: $typ = decoder.decode().unwrap();
 
-    #[test]
-    fn test_decode_tiny() {
-        let a: u8 = LittleEndian::from_slice(&[1u8, 0, 2]).unwrap();
-        let a: TestStructTiny = LittleEndian::from_reader(&[1u8, 0, 2] as &[u8]).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
+                let mut output = vec![0u8; $size];
+                let mut encoder = LittleEndianMut(&mut output[..]);
+                let size = encoder.encode(&pong).unwrap();
 
-        let a: TestStructTinyRef = LittleEndian::from_slice(&[1u8, 0, 2, 1, 3]).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-        assert_eq!(a.c, &[1u8, 3u8]);
-    }
-
-    #[test]
-    fn test_encode_tiny_derive() {
-        let a: TestStructTiny = LittleEndian::from_slice(&[1u8, 0, 2]).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-
-        let a: TestStructTinyDerive = LittleEndian::from_reader(&[1u8, 0, 2] as &[u8]).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-
-        let a: TestStructTinyDerive = LittleEndian::from_slice(&[1u8, 0, 2] as &[u8]).unwrap();
-        assert_eq!(a.a, 1);
-        assert_eq!(a.b, 2);
-    }
-
-    #[bench]
-    fn bench_decode_small(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
+                assert_eq!(&output[..size], &bytes[..size])
             }
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndian(&bytes[..]);
-                let mut pong: TestStructSmall = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
+        };
     }
 
-    #[bench]
-    fn bench_decode_large(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
+    test_struct!(test1_small, TestStructSmall, 1024);
+    test_struct!(test1_large, TestStructLarge, 1024);
+    test_struct!(test1_array, TestStructArray, 1024);
+    test_struct!(test1_vec, TestStructVec, 1024);
+}
+
+#[cfg(test)]
+mod benches {
+    use super::*;
+    use std::io::BufReader;
+
+    macro_rules! bench_decode {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[bench]
+            fn $func(b: &mut Bencher) {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                b.iter(|| {
+                    test::black_box(&bytes);
+                    let mut bytes = LittleEndian(&bytes[..]);
+                    let pong: $typ = bytes.decode().unwrap();
+                    test::black_box(pong);
+                });
             }
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndian(&bytes[..]);
-                let pong: TestStructLarge = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
+        };
     }
 
-    #[bench]
-    fn bench_decode_array(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
+    bench_decode!(decode1_small, TestStructSmall, 1024);
+    bench_decode!(decode1_large, TestStructLarge, 1024);
+    bench_decode!(decode1_array, TestStructArray, 1024);
+    bench_decode!(decode1_vec, TestStructVec, 1024);
+
+    macro_rules! bench_decode_into {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[bench]
+            fn $func(b: &mut Bencher) {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                b.iter(|| {
+                    test::black_box(&bytes);
+                    let mut bytes = LittleEndian(&bytes[..]);
+                    let mut pong: $typ = Default::default();
+                    bytes.decode_into(&mut pong).unwrap();
+                    test::black_box(&pong);
+                });
             }
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndian(&bytes[..]);
-                //let mut pong: TestStructArray = Default::default();
-                //bytes.decode_into(&mut pong).unwrap();
-                let pong: TestStructArray = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
+        };
     }
 
-    #[bench]
-    fn bench_decode_vec(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
+    bench_decode_into!(decode2_into_small, TestStructSmall, 1024);
+    bench_decode_into!(decode2_into_large, TestStructLarge, 1024);
+    bench_decode_into!(decode2_into_array, TestStructArray, 1024);
+    bench_decode_into!(decode2_into_vec, TestStructVec, 1024);
+
+    macro_rules! bench_decode_reader {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[bench]
+            fn $func(b: &mut Bencher) {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                b.iter(|| {
+                    test::black_box(&bytes);
+                    let mut bytes = LittleEndianReader::new(&bytes[..] as &[u8]);
+                    let pong: $typ = bytes.decode().unwrap();
+                    test::black_box(pong);
+                });
             }
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndian(&bytes[..]);
-                let pong: TestStructVec = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
+        };
     }
 
-    #[bench]
-    fn bench_decode_vec_into(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
+    bench_decode_reader!(decode3_reader_small, TestStructSmall, 1024);
+    bench_decode_reader!(decode3_reader_large, TestStructLarge, 1024);
+    bench_decode_reader!(decode3_reader_array, TestStructArray, 1024);
+    bench_decode_reader!(decode3_reader_vec, TestStructVec, 1024);
+
+    macro_rules! bench_encode {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[bench]
+            fn $func(b: &mut Bencher) {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                let pong: $typ = LittleEndian(&bytes[..]).decode().unwrap();
+                b.iter(|| {
+                    test::black_box(&pong);
+                    let mut encoder = LittleEndianMut(&mut bytes[..]);
+                    encoder.encode(&pong).unwrap();
+                    test::black_box(&bytes[..]);
+                });
             }
-            let mut pong: TestStructVec = Default::default();
-            pong.a53.reserve_exact(100);
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndian(&bytes[..]);
-                bytes.decode_into(&mut pong).unwrap();
-                test::black_box(&pong);
-            });
-        });
+        };
     }
 
-    #[bench]
-    fn bench_decode_small2(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let bytes = &bytes[..] as &[u8];
-            let mut buffer = [0u8; 1024];
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(&bytes[..]);
-                let pong: TestStructSmall = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_decode_large2(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let bytes = &bytes[..] as &[u8];
-            let mut buffer = [0u8; 1024];
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(&bytes[..]);
-                let pong: TestStructLarge = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_decode_array4(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let bytes = &bytes[..] as &[u8];
-            let mut buffer = [0u8; 1024];
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes: BufferedIO<_, _, 1024> = BufferedIO::new(&bytes[..]);
-                let mut bytes = LittleEndianReader::new(bytes);
-                let pong: TestStructArray = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_decode_array3(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let bytes = &bytes[..] as &[u8];
-            let mut buffer = [0u8; 1024];
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(BufReader::new(bytes));
-                let pong: TestStructArray = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_decode_array2(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            for b in bytes.iter_mut() {
-                *b = small_rng.gen();
-            }
-            let bytes = &bytes[..] as &[u8];
-            let mut buffer = [0u8; 1024];
-            b.iter(|| {
-                test::black_box(&bytes);
-                let mut bytes = LittleEndianReader::new(bytes);
-                let pong: TestStructArray = bytes.decode().unwrap();
-                test::black_box(pong);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_encode_small(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
-            }
-            let pong: TestStructSmall = LittleEndian(&bytes[..]).decode().unwrap();
-            b.iter(|| {
-                test::black_box(&pong);
-                let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode_into(&pong).unwrap();
-                test::black_box(&bytes[..]);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_encode_large(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 1024];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
-            }
-            let pong: TestStructLarge = LittleEndian(&bytes[..]).decode().unwrap();
-            b.iter(|| {
-                test::black_box(&pong);
-                let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode_into(&pong).unwrap();
-                test::black_box(&bytes[..]);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_encode_array(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
-            }
-            let pong: TestStructArray = LittleEndian(&bytes[..]).decode().unwrap();
-            b.iter(|| {
-                test::black_box(&pong);
-                let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode_into(&pong).unwrap();
-                test::black_box(&bytes[..]);
-            });
-        });
-    }
-
-    #[bench]
-    fn bench_encode_vec(b: &mut Bencher) {
-        let mut small_rng = SmallRng::from_entropy();
-        (0..5).for_each(|_| {
-            let mut bytes = vec![0u8; 100];
-            bytes[0] = 10;
-            for b in bytes.iter_mut().skip(8) {
-                *b = small_rng.gen();
-            }
-            let pong: TestStructVec = LittleEndian(&bytes[..]).decode().unwrap();
-            b.iter(|| {
-                test::black_box(&pong);
-                let mut encoder = LittleEndianMut(&mut bytes[..]);
-                encoder.encode_into(&pong).unwrap();
-                test::black_box(&bytes[..]);
-            });
-        });
-    }
-
-    #[test]
-    fn test_encode_vec() {
-        let mut small_rng = SmallRng::from_entropy();
-        let mut bytes = vec![0u8; 100];
-        bytes[0] = 10;
-        for b in bytes.iter_mut().skip(8) {
-            *b = small_rng.gen();
-        }
-        let pong: TestStructVec = LittleEndian(&bytes[..]).decode().unwrap();
-
-        let mut encoder = LittleEndianMut(&mut bytes[..]);
-        encoder.encode_into(&pong).unwrap();
-
-        let pong2: TestStructVec = LittleEndian(&bytes[..]).decode().unwrap();
-
-        assert_eq!(pong, pong2);
-    }
+    bench_encode!(encode_small, TestStructSmall, 1024);
+    bench_encode!(encode_large, TestStructLarge, 1024);
+    bench_encode!(encode_array, TestStructArray, 1024);
+    bench_encode!(encode_vec, TestStructVec, 1024);
 }

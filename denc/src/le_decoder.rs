@@ -160,15 +160,20 @@ impl<'a, V: Decode<LittleEndian<'a>> + Default> Decode<LittleEndian<'a>> for Vec
 
     #[inline(always)]
     fn decode(decoder: &mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        let mut vec = Vec::new();
-        Self::decode_into(decoder, &mut vec)?;
+        let size = u32::decode(decoder)? as usize;
+        if decoder.0.len() < V::SIZE * size {
+            return Err(EOF);
+        }
+        let mut vec = Vec::with_capacity(size);
+        for _ in 0..size {
+            vec.push(V::decode(decoder)?);
+        }
         Ok(vec)
     }
 
     #[inline(always)]
     fn decode_into(decoder: &mut LittleEndian<'a>, data: &mut Self) -> Result<(), &'static str> {
-        let mut size: u32 = u32::decode(decoder)?;
-        let size = size as usize;
+        let size = u32::decode(decoder)? as usize;
         if decoder.0.len() < V::SIZE * size {
             return Err(EOF);
         }
@@ -278,8 +283,11 @@ impl<R: Read, V: Decode<LittleEndianReader<R>>> Decode<LittleEndianReader<R>> fo
 
     #[inline(always)]
     fn decode(decoder: &mut LittleEndianReader<R>) -> Result<Self, &'static str> {
-        let mut vec = Vec::new();
-        Self::decode_into(decoder, &mut vec)?;
+        let size = u32::decode(decoder)? as usize;
+        let mut vec = Vec::with_capacity(size);
+        for _ in 0..size {
+            vec.push(V::decode(decoder)?);
+        }
         Ok(vec)
     }
 
@@ -288,8 +296,7 @@ impl<R: Read, V: Decode<LittleEndianReader<R>>> Decode<LittleEndianReader<R>> fo
         decoder: &mut LittleEndianReader<R>,
         data: &mut Self,
     ) -> Result<(), &'static str> {
-        let mut size: u32 = u32::decode(decoder)?;
-        let size = size as usize;
+        let size = u32::decode(decoder)? as usize;
         data.clear();
         if data.capacity() < size {
             data.reserve(size - data.capacity());

@@ -29,7 +29,7 @@ impl<'a> LittleEndianMut<'a> {
         let size = value.encode_len();
         let mut vec = vec![0; size];
         let mut encoder = LittleEndianMut(vec.as_mut_slice());
-        encoder.encode_into(value)?;
+        encoder.encode(value)?;
         Ok(vec)
     }
 
@@ -62,7 +62,7 @@ impl<'a> Encoder for LittleEndianMut<'a> {
     const EOF: Self::Error = EOF;
 
     #[inline]
-    fn encode_into<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
+    fn encode<T: Encode<Self>>(&mut self, value: &T) -> Result<usize, &'static str> {
         if self.0.len() < T::SIZE {
             return Err(EOF);
         }
