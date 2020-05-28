@@ -33,14 +33,14 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
         quote! {
-            #name: <#ty as Decode<Dec>>::decode(decoder)?,
+            #name: <#ty as denc::Decode<Dec>>::decode(decoder)?,
         }
     });
     let decoder_decode_impl2 = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
         quote! {
-            <#ty as Decode<Dec>>::decode_into(decoder, &mut value.#name)?;
+            <#ty as denc::Decode<Dec>>::decode_into(decoder, &mut value.#name)?;
         }
     });
     let name = &input.ident;
