@@ -1,4 +1,5 @@
 # Denc
+![](https://github.com/vova616/denc/workflows/Rust/badge.svg)
 
 Serialization library like serde but easier to customize and ultimatly should be faster.
 the library is not ready to use yet, its using unstable nightly features and changes a lot.
