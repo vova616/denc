@@ -5,7 +5,6 @@ authors = ["Vova <vova616@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-smallvec = "0.6.9"
 denc-derive = { path = "../denc-derive", optional = true }
 
 [profile.release]

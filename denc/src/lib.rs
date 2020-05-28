@@ -7,8 +7,6 @@
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_extra)]
 
-use smallvec::{smallvec, SmallVec};
-
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::{Read, Write};
 
