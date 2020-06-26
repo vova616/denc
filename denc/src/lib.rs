@@ -4,6 +4,8 @@
 #![feature(test)]
 #![feature(specialization)]
 #![feature(const_if_match)]
+#![feature(const_fn)]
+#![feature(const_trait_impl)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_extra)]
 
@@ -15,9 +17,12 @@ pub use denc_derive::*;
 
 mod le_decoder;
 mod le_encoder;
+mod named;
 
 pub use le_decoder::*;
 pub use le_encoder::*;
+pub use named::*;
+
 
 const EOF: &'static str = "EOF";
 

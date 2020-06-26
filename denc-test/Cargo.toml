@@ -8,12 +8,12 @@ edition = "2018"
 
 
 [profile.release]
-lto = true
+lto = "fat"
 codegen-units = 1
-debug = true
+#debug = true
 
 [profile.bench]
-lto = true
+lto = "fat"
 codegen-units = 1
 
 

@@ -8,11 +8,11 @@ edition = "2018"
 denc-derive = { path = "../denc-derive", optional = true }
 
 [profile.release]
-lto = true
+lto = "fat"
 codegen-units = 1
 
 [profile.bench]
-lto = true
+lto = "fat"
 codegen-units = 1
 
 [dev-dependencies]
