@@ -8,7 +8,7 @@
 #![feature(const_trait_impl)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_extra)]
-
+    
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::{Read, Write};
 
