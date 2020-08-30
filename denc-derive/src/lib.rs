@@ -67,7 +67,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
              )+*;
 
             #[inline(always)]
-            fn decode<'b>(decoder: &'b mut Dec) -> Result<Self, Dec::Error> {
+            default fn decode<'b>(decoder: &'b mut Dec) -> Result<Self, Dec::Error> {
                 Ok(#name {
                     #(
                         #decoder_decode_impl
@@ -76,7 +76,7 @@ pub fn derive_mapper_dec(input: TokenStream) -> TokenStream {
             }
 
             #[inline(always)]
-            fn decode_into(decoder: &mut Dec, value: &mut Self) -> Result<(), Dec::Error> {
+            default fn decode_into(decoder: &mut Dec, value: &mut Self) -> Result<(), Dec::Error> {
                 #(
                     #decoder_decode_impl2
                 )*
@@ -225,7 +225,7 @@ pub fn derive_mapper_dic(input: TokenStream) -> TokenStream {
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let output = quote! {
-        default impl #impl_generics Decode<Dec> for #name #ty_generics
+        impl #impl_generics Decode<Dec> for #name #ty_generics
             where
             #(
                 #types_uniq : denc::Decode<Dec>

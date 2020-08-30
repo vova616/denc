@@ -125,11 +125,12 @@ pub struct TestStructTinyT<T: Clone> {
     pub b: T,
 }
 
-#[derive(Default, Denc, Enc)]
+#[derive(Default, Denc, Enc, Dic)]
 pub struct TestStructTiny {
     pub a: u16,
     pub b: u8,
 }
+
 
 #[cfg(test)]
 mod tests {
