@@ -2,7 +2,7 @@
 #![feature(generators, generator_trait)]
 #![feature(const_generics)]
 #![feature(test)]
-#![feature(specialization)]
+#![feature(min_specialization)]
 #![feature(const_if_match)]
 #![feature(const_fn)]
 #![feature(const_trait_impl)]
