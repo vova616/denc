@@ -246,6 +246,27 @@ mod benches {
         };
     }
 
+    macro_rules! bench_decode_reader_into {
+        ($func:ident, $typ:ident, $size:expr) => {
+            #[bench]
+            fn $func(b: &mut Bencher) {
+                let mut small_rng = SmallRng::from_seed([15u8; 16]);
+                let mut bytes = vec![0u8; $size];
+                bytes[0] = 10;
+                for b in bytes.iter_mut().skip(8) {
+                    *b = small_rng.gen();
+                }
+                b.iter(|| {
+                    test::black_box(&bytes);
+                    let mut bytes = LittleEndianReader::new(&bytes[..] as &[u8]);
+                    let mut pong: $typ = Default::default();
+                    bytes.decode_into(&mut pong).unwrap();
+                    test::black_box(&pong);
+                });
+            }
+        };
+    }
+
     macro_rules! bench_encode {
         ($func:ident, $typ:ident, $size:expr) => {
             #[bench]
@@ -271,6 +292,10 @@ mod benches {
         ($name:ident, $typ:ident, $size:expr) => {
             mod $name {
                 use super::*;
+                mod decode_reader_into {
+                    use super::*;
+                    bench_decode_reader_into!($name, $typ, $size);
+                }
                 mod decode_reader {
                     use super::*;
                     bench_decode_reader!($name, $typ, $size);

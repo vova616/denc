@@ -1,13 +1,14 @@
 #![feature(associated_type_defaults)]
 #![feature(generators, generator_trait)]
-#![feature(const_generics)]
 #![feature(test)]
-#![feature(specialization)]
-#![feature(const_if_match)]
-#![feature(const_fn)]
+#![feature(min_specialization)]
 #![feature(const_trait_impl)]
 #![feature(maybe_uninit_uninit_array)]
-#![feature(maybe_uninit_extra)]
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(const_try)]
+#![feature(const_mut_refs)]
+#![feature(const_slice_index)]
+
     
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::{Read, Write};
@@ -230,7 +231,7 @@ impl<T, const N: usize> InitWith<T, N> for [T; N] {
         for (i, a) in arr.iter_mut().enumerate() {
             a.write(func(i));
         }
-        unsafe { mem::transmute_copy::<_, [T; N]>(&arr) }
+        unsafe { MaybeUninit::array_assume_init(arr) }
     }
 
     #[inline(always)]
@@ -242,6 +243,9 @@ impl<T, const N: usize> InitWith<T, N> for [T; N] {
         for (i, a) in arr.iter_mut().enumerate() {
             a.write(func(i)?);
         }
-        Ok(unsafe { mem::transmute_copy::<_, [T; N]>(&arr) })
+        unsafe { Ok(MaybeUninit::array_assume_init(arr)) }
     }
 }
+
+
+

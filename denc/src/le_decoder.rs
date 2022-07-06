@@ -2,15 +2,19 @@ use crate::InitWith;
 use crate::{split_at_const, Decode, Decoder, EOF};
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::Read;
-
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
 use std::ops::Range;
 
 impl<'a> LittleEndian<'a> {
+
     #[inline(always)]
-    fn advance(&mut self, len: usize) -> Option<()> {
-        self.0 = self.0.get(len..)?;
+    const fn advance(&mut self, len: usize) -> Option<()> {
+        if self.0.len() < len {
+            self.0 = &[];
+            return None;
+        }
+        self.0 = &self.0[len..];
         Some(())
     }
 
@@ -50,15 +54,6 @@ impl<'a> LittleEndian<'a> {
         Some(&ptr)
     }
 
-    #[inline(always)]
-    fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
-        if self.0.len() < len {
-            return None;
-        }
-        let r = self.0.get(0..len)?;
-        self.0 = self.0.get(len..)?;
-        return Some(r);
-    }
 
     #[inline(always)]
     fn read_const<'b, const N: usize>(&'b mut self) -> Result<&[u8; N], &'static str> {
@@ -93,7 +88,7 @@ impl<'a> Decoder for LittleEndian<'a> {
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u8 {
+impl<'a> const Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
@@ -108,23 +103,54 @@ impl<'a> Decode<LittleEndian<'a>> for u8 {
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u16 {
+
+
+const fn test() {
+    let le = &mut LittleEndian(&[1,2,3,4]);
+    let le1: u8 = match u8::decode(le) {
+        Ok(x) => x,
+        Err(e) => panic!("{}", e),
+    };
+    let le2: u16 = match u16::decode(le) {
+        Ok(x) => x,
+        Err(e) => panic!("{}", e),
+    };
+    let r: () = if le1 != 1 { panic!("u8") };
+    let r2: () = if le2 != 0x302 { panic!("u16") };
+}
+
+const A: () = test();
+
+
+
+
+impl<'a> const Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
     fn decode<'b>(decoder: &'b mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        let slice = decoder.buff_advance_exact(2).ok_or(EOF)?;
-        Ok(u16::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
+        match decoder.0 {
+            &[x, y, ref inner @ ..] => {
+                decoder.0 = inner;
+                Ok(u16::from_le_bytes([x, y]))
+            }
+            _ => Err(EOF),
+        }
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u32 {
+impl<'a> const Decode<LittleEndian<'a>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
     fn decode(decoder: &mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        let slice = decoder.buff_advance_exact(4).ok_or(EOF)?;
-        Ok(u32::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
+        match decoder.0 {
+            &[x, y, z, w, ref inner @ ..] => {
+                decoder.0 = inner;
+                Ok(u32::from_le_bytes([x, y, z, w]))
+            }
+            _ => Err(EOF),
+        }
     }
 }
 
