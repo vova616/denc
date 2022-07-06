@@ -8,8 +8,13 @@
 #![feature(const_try)]
 #![feature(const_mut_refs)]
 #![feature(const_slice_index)]
+#![feature(const_maybe_uninit_uninit_array)]
+#![feature(const_replace)]
+#![feature(const_convert)]
+#![feature(const_maybe_uninit_write)]
+#![feature(const_precise_live_drops)]
+#![feature(const_maybe_uninit_array_assume_init)]
 
-    
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::{Read, Write};
 

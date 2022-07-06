@@ -6,6 +6,24 @@ pub struct LittleEndian<'a>(pub &'a [u8]);
 
 use std::ops::Range;
 
+
+const fn test() {
+    let le = &mut LittleEndian(&[1,2,3,4]);
+    let le1: u8 = match le.decode() {
+        Ok(x) => x,
+        Err(e) => panic!("{}", e),
+    };
+    let le2: u16 = match le.decode() {
+        Ok(x) => x,
+        Err(e) => panic!("{}", e),
+    };
+    let r: () = if le1 != 1 { panic!("u8") };
+    let r2: () = if le2 != 0x302 { panic!("u16") };
+}
+
+const A: () = test();
+
+
 impl<'a> LittleEndian<'a> {
 
     #[inline(always)]
@@ -63,7 +81,7 @@ impl<'a> LittleEndian<'a> {
     }
 
     #[inline(always)]
-    fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
+    const fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
         if self.0.len() < len {
             Err(EOF)
         } else {
@@ -77,12 +95,12 @@ impl<'a> LittleEndian<'a> {
     }
 }
 
-impl<'a> Decoder for LittleEndian<'a> {
+impl<'a> const Decoder for LittleEndian<'a> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
 
     #[inline]
-    fn decode<T: Decode<Self>>(&mut self) -> Result<T, Self::Error> {
+    fn decode<T: ~const Decode<Self>>(&mut self) -> Result<T, Self::Error> {
         self.fill_buffer(T::SIZE)?;
         T::decode(self)
     }
@@ -102,27 +120,6 @@ impl<'a> const Decode<LittleEndian<'a>> for u8 {
         }
     }
 }
-
-
-
-const fn test() {
-    let le = &mut LittleEndian(&[1,2,3,4]);
-    let le1: u8 = match u8::decode(le) {
-        Ok(x) => x,
-        Err(e) => panic!("{}", e),
-    };
-    let le2: u16 = match u16::decode(le) {
-        Ok(x) => x,
-        Err(e) => panic!("{}", e),
-    };
-    let r: () = if le1 != 1 { panic!("u8") };
-    let r2: () = if le2 != 0x302 { panic!("u16") };
-}
-
-const A: () = test();
-
-
-
 
 impl<'a> const Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
@@ -154,12 +151,12 @@ impl<'a> const Decode<LittleEndian<'a>> for u32 {
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
+impl<'a> const Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 0;
 
     #[inline(always)]
     fn decode<'b>(decoder: &'b mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        Ok(&decoder.0.get(..).ok_or(EOF)?)
+        Ok(std::mem::replace(&mut decoder.0, &[]))
     }
 }
 
