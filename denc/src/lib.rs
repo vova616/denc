@@ -36,7 +36,6 @@ pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool = false;
 
-    #[inline]
     fn decode(decoder: &mut T) -> Result<Self, T::Error>;
 
     #[inline]
@@ -154,30 +153,6 @@ impl<T: Read, V: Sized + Default + Copy, const N: usize> BufferedIO<T, V, N> {
         }
     }
 }
-
-/*
-pub fn fill_buffer_inner(&mut self, len: usize) -> Result<(), &'static str> {
-    if self.buffer.len() < len + self.cursor.start {
-        if self.buffer.len() < len {
-            return Err("Buffer is too small");
-        }
-        self.buffer.copy_within(self.cursor.clone(), 0);
-        self.cursor = 0..self.cursor.len();
-    }
-    self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-        Ok(n) => n,
-        Err(e) => return Err("Read err"),
-    };
-}
-
-fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
-    while self.cursor.len() < len {
-        self.fill_buffer_inner(len)?;
-    }
-    Ok(())
-    //assert!(self.cursor.len() >= len);
-}
-*/
 
 impl<T: Read, const N: usize> Read for BufferedIO<T, u8, N> {
     #[inline]

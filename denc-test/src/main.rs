@@ -1,5 +1,7 @@
 #![feature(test)]
-#![feature(specialization)]
+#![feature(min_specialization)]
+#![feature(const_mut_refs)]
+#![feature(const_trait_impl)]
 
 #[cfg(feature = "derive")]
 pub use denc_derive::*;
@@ -246,26 +248,7 @@ mod benches {
         };
     }
 
-    macro_rules! bench_decode_reader_into {
-        ($func:ident, $typ:ident, $size:expr) => {
-            #[bench]
-            fn $func(b: &mut Bencher) {
-                let mut small_rng = SmallRng::from_seed([15u8; 16]);
-                let mut bytes = vec![0u8; $size];
-                bytes[0] = 10;
-                for b in bytes.iter_mut().skip(8) {
-                    *b = small_rng.gen();
-                }
-                b.iter(|| {
-                    test::black_box(&bytes);
-                    let mut bytes = LittleEndianReader::new(&bytes[..] as &[u8]);
-                    let mut pong: $typ = Default::default();
-                    bytes.decode_into(&mut pong).unwrap();
-                    test::black_box(&pong);
-                });
-            }
-        };
-    }
+    
 
     macro_rules! bench_encode {
         ($func:ident, $typ:ident, $size:expr) => {
@@ -292,10 +275,6 @@ mod benches {
         ($name:ident, $typ:ident, $size:expr) => {
             mod $name {
                 use super::*;
-                mod decode_reader_into {
-                    use super::*;
-                    bench_decode_reader_into!($name, $typ, $size);
-                }
                 mod decode_reader {
                     use super::*;
                     bench_decode_reader!($name, $typ, $size);
@@ -320,4 +299,26 @@ mod benches {
     bench_struct!(large, TestStructLarge, 1024);
     bench_struct!(array, TestStructArray, 1024);
     bench_struct!(vec, TestStructVec, 1024);
+
+
+
+    use std::ops::Range;
+
+
+    const fn test() {
+        let arr = [1,2,3,4];
+        let le = &mut LittleEndian(&arr);
+        let le1: u8 = match le.decode() {
+            Ok(x) => x,
+            Err(e) => panic!("{}", e),
+        };
+        let le2: u16 = match le.decode() {
+            Ok(x) => x,
+            Err(e) => panic!("{}", e),
+        };
+        let r: () = if le1 != 1 { panic!("u8") };
+        let r2: () = if le2 != 0x302 { panic!("u16") };
+    }
+
+    const A: () = test();
 }
