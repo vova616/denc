@@ -1,11 +1,19 @@
 #![feature(associated_type_defaults)]
 #![feature(generators, generator_trait)]
-#![feature(const_generics)]
 #![feature(test)]
-#![feature(specialization)]
-#![feature(const_if_match)]
+#![feature(min_specialization)]
+#![feature(const_trait_impl)]
 #![feature(maybe_uninit_uninit_array)]
-#![feature(maybe_uninit_extra)]
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(const_try)]
+#![feature(const_mut_refs)]
+#![feature(const_slice_index)]
+#![feature(const_maybe_uninit_uninit_array)]
+#![feature(const_replace)]
+#![feature(const_convert)]
+#![feature(const_maybe_uninit_write)]
+#![feature(const_precise_live_drops)]
+#![feature(const_maybe_uninit_array_assume_init)]
 
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::{Read, Write};
@@ -15,9 +23,12 @@ pub use denc_derive::*;
 
 mod le_decoder;
 mod le_encoder;
+mod named;
 
 pub use le_decoder::*;
 pub use le_encoder::*;
+pub use named::*;
+
 
 const EOF: &'static str = "EOF";
 
@@ -25,7 +36,6 @@ pub trait Decode<T: Decoder>: Sized {
     const SIZE: usize;
     const STATIC: bool = false;
 
-    #[inline]
     fn decode(decoder: &mut T) -> Result<Self, T::Error>;
 
     #[inline]
@@ -144,30 +154,6 @@ impl<T: Read, V: Sized + Default + Copy, const N: usize> BufferedIO<T, V, N> {
     }
 }
 
-/*
-pub fn fill_buffer_inner(&mut self, len: usize) -> Result<(), &'static str> {
-    if self.buffer.len() < len + self.cursor.start {
-        if self.buffer.len() < len {
-            return Err("Buffer is too small");
-        }
-        self.buffer.copy_within(self.cursor.clone(), 0);
-        self.cursor = 0..self.cursor.len();
-    }
-    self.cursor.end += match self.reader.read(&mut self.buffer[self.cursor.end..]) {
-        Ok(n) => n,
-        Err(e) => return Err("Read err"),
-    };
-}
-
-fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
-    while self.cursor.len() < len {
-        self.fill_buffer_inner(len)?;
-    }
-    Ok(())
-    //assert!(self.cursor.len() >= len);
-}
-*/
-
 impl<T: Read, const N: usize> Read for BufferedIO<T, u8, N> {
     #[inline]
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
@@ -225,7 +211,7 @@ impl<T, const N: usize> InitWith<T, N> for [T; N] {
         for (i, a) in arr.iter_mut().enumerate() {
             a.write(func(i));
         }
-        unsafe { mem::transmute_copy::<_, [T; N]>(&arr) }
+        unsafe { MaybeUninit::array_assume_init(arr) }
     }
 
     #[inline(always)]
@@ -237,6 +223,9 @@ impl<T, const N: usize> InitWith<T, N> for [T; N] {
         for (i, a) in arr.iter_mut().enumerate() {
             a.write(func(i)?);
         }
-        Ok(unsafe { mem::transmute_copy::<_, [T; N]>(&arr) })
+        unsafe { Ok(MaybeUninit::array_assume_init(arr)) }
     }
 }
+
+
+

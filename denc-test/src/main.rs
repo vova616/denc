@@ -1,5 +1,7 @@
 #![feature(test)]
-#![feature(specialization)]
+#![feature(min_specialization)]
+#![feature(const_mut_refs)]
+#![feature(const_trait_impl)]
 
 #[cfg(feature = "derive")]
 pub use denc_derive::*;
@@ -16,6 +18,12 @@ use rand::SeedableRng;
 
 #[derive(Default, Denc, Enc)]
 pub struct TestStruct {
+    pub a: u16,
+    pub b: u32,
+}
+
+#[derive(Default, Enc)]
+pub struct TestStruct2 {
     pub a: u16,
     pub b: u32,
 }
@@ -130,6 +138,22 @@ mod tests {
     use super::*;
     use std::io::BufReader;
 
+    pub struct TestStruct {
+        pub a: u16,
+        pub b: u32,
+    }
+
+    impl Dic for TestStruct {
+        const FIELDS: &'static [&'static str] = &["a", "b"];
+    }
+
+    #[test]
+    fn test() {
+        dbg!(TestStruct::from_str(&"a"));
+        dbg!(TestStruct::from_str(&"b"));
+    }
+    
+
     macro_rules! test_struct {
         ($func:ident, $typ:ident, $size:expr) => {
             #[test]
@@ -183,11 +207,6 @@ mod benches {
         };
     }
 
-    bench_decode!(decode1_small, TestStructSmall, 1024);
-    bench_decode!(decode1_large, TestStructLarge, 1024);
-    bench_decode!(decode1_array, TestStructArray, 1024);
-    bench_decode!(decode1_vec, TestStructVec, 1024);
-
     macro_rules! bench_decode_into {
         ($func:ident, $typ:ident, $size:expr) => {
             #[bench]
@@ -209,11 +228,6 @@ mod benches {
         };
     }
 
-    bench_decode_into!(decode2_into_small, TestStructSmall, 1024);
-    bench_decode_into!(decode2_into_large, TestStructLarge, 1024);
-    bench_decode_into!(decode2_into_array, TestStructArray, 1024);
-    bench_decode_into!(decode2_into_vec, TestStructVec, 1024);
-
     macro_rules! bench_decode_reader {
         ($func:ident, $typ:ident, $size:expr) => {
             #[bench]
@@ -234,10 +248,7 @@ mod benches {
         };
     }
 
-    bench_decode_reader!(decode3_reader_small, TestStructSmall, 1024);
-    bench_decode_reader!(decode3_reader_large, TestStructLarge, 1024);
-    bench_decode_reader!(decode3_reader_array, TestStructArray, 1024);
-    bench_decode_reader!(decode3_reader_vec, TestStructVec, 1024);
+    
 
     macro_rules! bench_encode {
         ($func:ident, $typ:ident, $size:expr) => {
@@ -260,8 +271,54 @@ mod benches {
         };
     }
 
-    bench_encode!(encode_small, TestStructSmall, 1024);
-    bench_encode!(encode_large, TestStructLarge, 1024);
-    bench_encode!(encode_array, TestStructArray, 1024);
-    bench_encode!(encode_vec, TestStructVec, 1024);
+    macro_rules! bench_struct {
+        ($name:ident, $typ:ident, $size:expr) => {
+            mod $name {
+                use super::*;
+                mod decode_reader {
+                    use super::*;
+                    bench_decode_reader!($name, $typ, $size);
+                }
+                mod decode_into {
+                    use super::*;
+                    bench_decode_into!($name, $typ, $size);
+                }
+                mod decode {
+                    use super::*;
+                    bench_decode!($name, $typ, $size);
+                }
+                mod encode {
+                    use super::*;
+                    bench_encode!($name, $typ, $size);
+                }
+            }
+        };
+    }
+    
+    bench_struct!(small, TestStructSmall, 1024);
+    bench_struct!(large, TestStructLarge, 1024);
+    bench_struct!(array, TestStructArray, 1024);
+    bench_struct!(vec, TestStructVec, 1024);
+
+
+
+    use std::ops::Range;
+
+
+    const fn test() {
+        let arr = [1,2,3,4];
+        let le = &mut LittleEndian(&arr);
+        let le1: u8 = match le.decode() {
+            Ok(x) => x,
+            Err(e) => panic!("{}", e),
+        };
+        let le2: u16 = match le.decode() {
+            Ok(x) => x,
+            Err(e) => panic!("{}", e),
+        };
+        let r: () = if le1 != 1 { panic!("u8") };
+        let r2: () = if le2 != 0x302 { panic!("u16") };
+    }
+
+    const A: () = test();
 }

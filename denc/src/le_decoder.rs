@@ -2,18 +2,12 @@ use crate::InitWith;
 use crate::{split_at_const, Decode, Decoder, EOF};
 use std::convert::{TryFrom, TryInto};
 use std::io::prelude::Read;
-
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
-use std::ops::Range;
+
+
 
 impl<'a> LittleEndian<'a> {
-    #[inline(always)]
-    fn advance(&mut self, len: usize) -> Option<()> {
-        self.0 = self.0.get(len..)?;
-        Some(())
-    }
-
     #[inline]
     pub fn from_slice<T: Decode<Self> + Default>(slice: &'a [u8]) -> Result<T, &'static str> {
         LittleEndian(slice).decode()
@@ -34,41 +28,7 @@ impl<'a> LittleEndian<'a> {
     }
 
     #[inline(always)]
-    fn buff_advance_exact_const<'b, const N: usize>(&'b mut self) -> Option<&'b [u8; N]> {
-        let (next, new) = split_at_const::<N>(self.0)?;
-        self.0 = new;
-        return Some(next);
-    }
-
-    #[inline(always)]
-    fn get_const<'b, const N: usize>(&'b mut self) -> Option<&'b [u8; N]> {
-        let ptr = self.0.get(0..N)?.as_ptr();
-        //cast *u8 to *[u8; N] this should be fine I think?
-        let ptr: *const [u8; N] = ptr.cast();
-        //dereference ptr
-        let ptr = unsafe { &*ptr };
-        Some(&ptr)
-    }
-
-    #[inline(always)]
-    fn buff_advance_exact<'b>(&'b mut self, len: usize) -> Option<&'b [u8]> {
-        if self.0.len() < len {
-            return None;
-        }
-        let r = self.0.get(0..len)?;
-        self.0 = self.0.get(len..)?;
-        return Some(r);
-    }
-
-    #[inline(always)]
-    fn read_const<'b, const N: usize>(&'b mut self) -> Result<&[u8; N], &'static str> {
-        let (a, b) = split_at_const(&self.0).ok_or(EOF)?;
-        self.0 = b;
-        return Ok(a);
-    }
-
-    #[inline(always)]
-    fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
+    const fn fill_buffer(&mut self, len: usize) -> Result<(), &'static str> {
         if self.0.len() < len {
             Err(EOF)
         } else {
@@ -76,24 +36,20 @@ impl<'a> LittleEndian<'a> {
         }
     }
 
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
 }
 
-impl<'a> Decoder for LittleEndian<'a> {
+impl<'a> const Decoder for LittleEndian<'a> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
 
     #[inline]
-    fn decode<T: Decode<Self>>(&mut self) -> Result<T, Self::Error> {
+    fn decode<T: ~const Decode<Self>>(&mut self) -> Result<T, Self::Error> {
         self.fill_buffer(T::SIZE)?;
         T::decode(self)
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u8 {
+impl<'a> const Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
@@ -108,32 +64,42 @@ impl<'a> Decode<LittleEndian<'a>> for u8 {
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u16 {
+impl<'a> const Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
     fn decode<'b>(decoder: &'b mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        let slice = decoder.buff_advance_exact(2).ok_or(EOF)?;
-        Ok(u16::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
+        match decoder.0 {
+            &[x, y, ref inner @ ..] => {
+                decoder.0 = inner;
+                Ok(u16::from_le_bytes([x, y]))
+            }
+            _ => Err(EOF),
+        }
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for u32 {
+impl<'a> const Decode<LittleEndian<'a>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
     fn decode(decoder: &mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        let slice = decoder.buff_advance_exact(4).ok_or(EOF)?;
-        Ok(u32::from_le_bytes(slice.try_into().ok().ok_or(EOF)?))
+        match decoder.0 {
+            &[x, y, z, w, ref inner @ ..] => {
+                decoder.0 = inner;
+                Ok(u32::from_le_bytes([x, y, z, w]))
+            }
+            _ => Err(EOF),
+        }
     }
 }
 
-impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
+impl<'a> const Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 0;
 
     #[inline(always)]
     fn decode<'b>(decoder: &'b mut LittleEndian<'a>) -> Result<Self, &'static str> {
-        Ok(&decoder.0.get(..).ok_or(EOF)?)
+        Ok(std::mem::replace(&mut decoder.0, &[]))
     }
 }
 
