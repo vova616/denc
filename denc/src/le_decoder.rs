@@ -4,9 +4,6 @@ use std::convert::{TryFrom, TryInto};
 use std::io::prelude::Read;
 pub struct LittleEndian<'a>(pub &'a [u8]);
 
-
-
-
 impl<'a> LittleEndian<'a> {
     #[inline]
     pub fn from_slice<T: Decode<Self> + Default>(slice: &'a [u8]) -> Result<T, &'static str> {
@@ -35,21 +32,20 @@ impl<'a> LittleEndian<'a> {
             Ok(())
         }
     }
-
 }
 
-impl<'a> const Decoder for LittleEndian<'a> {
+impl<'a> Decoder for LittleEndian<'a> {
     type Error = &'static str;
     const EOF: Self::Error = EOF;
 
     #[inline]
-    fn decode<T: ~const Decode<Self>>(&mut self) -> Result<T, Self::Error> {
+    fn decode<T: Decode<Self>>(&mut self) -> Result<T, Self::Error> {
         self.fill_buffer(T::SIZE)?;
         T::decode(self)
     }
 }
 
-impl<'a> const Decode<LittleEndian<'a>> for u8 {
+impl<'a> Decode<LittleEndian<'a>> for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
@@ -64,7 +60,7 @@ impl<'a> const Decode<LittleEndian<'a>> for u8 {
     }
 }
 
-impl<'a> const Decode<LittleEndian<'a>> for u16 {
+impl<'a> Decode<LittleEndian<'a>> for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
@@ -79,7 +75,7 @@ impl<'a> const Decode<LittleEndian<'a>> for u16 {
     }
 }
 
-impl<'a> const Decode<LittleEndian<'a>> for u32 {
+impl<'a> Decode<LittleEndian<'a>> for u32 {
     const SIZE: usize = 4;
 
     #[inline(always)]
@@ -94,7 +90,7 @@ impl<'a> const Decode<LittleEndian<'a>> for u32 {
     }
 }
 
-impl<'a> const Decode<LittleEndian<'a>> for &'a [u8] {
+impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 0;
 
     #[inline(always)]

@@ -152,7 +152,6 @@ mod tests {
         dbg!(TestStruct::from_str(&"a"));
         dbg!(TestStruct::from_str(&"b"));
     }
-    
 
     macro_rules! test_struct {
         ($func:ident, $typ:ident, $size:expr) => {
@@ -248,8 +247,6 @@ mod benches {
         };
     }
 
-    
-
     macro_rules! bench_encode {
         ($func:ident, $typ:ident, $size:expr) => {
             #[bench]
@@ -294,31 +291,28 @@ mod benches {
             }
         };
     }
-    
+
     bench_struct!(small, TestStructSmall, 1024);
     bench_struct!(large, TestStructLarge, 1024);
     bench_struct!(array, TestStructArray, 1024);
     bench_struct!(vec, TestStructVec, 1024);
 
-
-
     use std::ops::Range;
 
+    // const fn test() {
+    //     let arr = [1,2,3,4];
+    //     let le = &mut LittleEndian(&arr);
+    //     let le1: u8 = match le.decode() {
+    //         Ok(x) => x,
+    //         Err(e) => panic!("{}", e),
+    //     };
+    //     let le2: u16 = match le.decode() {
+    //         Ok(x) => x,
+    //         Err(e) => panic!("{}", e),
+    //     };
+    //     let r: () = if le1 != 1 { panic!("u8") };
+    //     let r2: () = if le2 != 0x302 { panic!("u16") };
+    // }
 
-    const fn test() {
-        let arr = [1,2,3,4];
-        let le = &mut LittleEndian(&arr);
-        let le1: u8 = match le.decode() {
-            Ok(x) => x,
-            Err(e) => panic!("{}", e),
-        };
-        let le2: u16 = match le.decode() {
-            Ok(x) => x,
-            Err(e) => panic!("{}", e),
-        };
-        let r: () = if le1 != 1 { panic!("u8") };
-        let r2: () = if le2 != 0x302 { panic!("u16") };
-    }
-
-    const A: () = test();
+    // const A: () = test();
 }
