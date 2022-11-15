@@ -1,5 +1,4 @@
 #![feature(associated_type_defaults)]
-#![feature(generators, generator_trait)]
 #![feature(test)]
 #![feature(min_specialization)]
 #![feature(const_trait_impl)]
@@ -28,7 +27,6 @@ mod named;
 pub use le_decoder::*;
 pub use le_encoder::*;
 pub use named::*;
-
 
 const EOF: &'static str = "EOF";
 
@@ -226,6 +224,3 @@ impl<T, const N: usize> InitWith<T, N> for [T; N] {
         unsafe { Ok(MaybeUninit::array_assume_init(arr)) }
     }
 }
-
-
-

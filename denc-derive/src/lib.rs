@@ -1,4 +1,3 @@
-#![feature(generators, generator_trait)]
 #![recursion_limit = "128"]
 
 extern crate proc_macro;
@@ -197,15 +196,20 @@ pub fn derive_mapper_dic(input: TokenStream) -> TokenStream {
             #name: #name.unwrap()
         }
     });
-    let name_ids: Vec<_> = input.fields.iter().enumerate().map(|(i, f)| {
-        let name = f.ident.as_ref().unwrap();
-        let ty = &f.ty;
-        let iplus1 = (i + 1) as u16;
-        quote! {
-            std::stringify!(#name) => #iplus1
-        }
-    }).collect();
-    let decode_impl= input.fields.iter().enumerate().map(|(i, f)| {
+    let name_ids: Vec<_> = input
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let name = f.ident.as_ref().unwrap();
+            let ty = &f.ty;
+            let iplus1 = (i + 1) as u16;
+            quote! {
+                std::stringify!(#name) => #iplus1
+            }
+        })
+        .collect();
+    let decode_impl = input.fields.iter().enumerate().map(|(i, f)| {
         let name = f.ident.as_ref().unwrap();
         let ty = &f.ty;
         let iplus1 = i + 1;
