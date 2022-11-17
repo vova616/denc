@@ -212,6 +212,17 @@ impl<R: Read> Decode<LittleEndianReader<R>> for u32 {
     }
 }
 
+impl<R: Read> Decode<LittleEndianReader<R>> for u64 {
+    const SIZE: usize = 8;
+
+    #[inline(always)]
+    fn decode(decoder: &mut LittleEndianReader<R>) -> Result<Self, &'static str> {
+        let mut bytes = [0u8; 8];
+        decoder.reader.read_exact(&mut bytes[..]).map_err(|e| EOF)?;
+        Ok(u64::from_le_bytes(bytes))
+    }
+}
+
 impl<R: Read, V: Decode<LittleEndianReader<R>>, const N: usize> Decode<LittleEndianReader<R>>
     for [V; N]
 {
