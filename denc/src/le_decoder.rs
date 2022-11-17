@@ -90,6 +90,21 @@ impl<'a> Decode<LittleEndian<'a>> for u32 {
     }
 }
 
+impl<'a> Decode<LittleEndian<'a>> for u64 {
+    const SIZE: usize = 8;
+
+    #[inline(always)]
+    fn decode(decoder: &mut LittleEndian<'a>) -> Result<Self, &'static str> {
+        match decoder.0 {
+            &[x, y, z, w, x2, y2, z2, w2, ref inner @ ..] => {
+                decoder.0 = inner;
+                Ok(u64::from_le_bytes([x, y, z, w, x2, y2, z2, w2]))
+            }
+            _ => Err(EOF),
+        }
+    }
+}
+
 impl<'a> Decode<LittleEndian<'a>> for &'a [u8] {
     const SIZE: usize = 0;
 
