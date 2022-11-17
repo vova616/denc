@@ -269,3 +269,18 @@ impl<R: Read, V: Decode<LittleEndianReader<R>>> Decode<LittleEndianReader<R>> fo
         Ok(())
     }
 }
+
+impl<'a, V: Decode<LittleEndian<'a>> + Default> Decode<LittleEndian<'a>> for Option<V> {
+    const SIZE: usize = 1;
+    const STATIC: bool = false;
+
+    #[inline(always)]
+    fn decode(decoder: &mut LittleEndian<'a>) -> Result<Self, &'static str> {
+        let exists = u8::decode(decoder)? == 1;
+        if !exists {
+            Ok(None)
+        } else {
+            Ok(Some(V::decode(decoder)?))
+        }
+    }
+}
