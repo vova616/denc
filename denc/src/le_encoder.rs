@@ -82,7 +82,25 @@ impl<'a> Encode<LittleEndianMut<'a>> for u8 {
     }
 }
 
+impl<'a> Encode<LittleEndianMut<'a>> for i8 {
+    const SIZE: usize = 1;
+
+    #[inline(always)]
+    fn encode<'b>(&self, data: &mut LittleEndianMut<'b>) -> Result<(), &'static str> {
+        data.write_const(&self.to_le_bytes())
+    }
+}
+
 impl<'a> Encode<LittleEndianMut<'a>> for u16 {
+    const SIZE: usize = 2;
+
+    #[inline(always)]
+    fn encode<'b>(&self, data: &mut LittleEndianMut<'b>) -> Result<(), &'static str> {
+        data.write_const(&self.to_le_bytes())
+    }
+}
+
+impl<'a> Encode<LittleEndianMut<'a>> for i16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
@@ -100,7 +118,25 @@ impl<'a> Encode<LittleEndianMut<'a>> for u32 {
     }
 }
 
+impl<'a> Encode<LittleEndianMut<'a>> for i32 {
+    const SIZE: usize = 4;
+
+    #[inline(always)]
+    fn encode<'b>(&self, data: &mut LittleEndianMut<'b>) -> Result<(), &'static str> {
+        data.write_const(&self.to_le_bytes())
+    }
+}
+
 impl<'a> Encode<LittleEndianMut<'a>> for u64 {
+    const SIZE: usize = 8;
+
+    #[inline(always)]
+    fn encode<'b>(&self, data: &mut LittleEndianMut<'b>) -> Result<(), &'static str> {
+        data.write_const(&self.to_le_bytes())
+    }
+}
+
+impl<'a> Encode<LittleEndianMut<'a>> for i64 {
     const SIZE: usize = 8;
 
     #[inline(always)]
